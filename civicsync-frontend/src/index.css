@@ -16,11 +16,11 @@
   }
 }
 
-/* Ensure the body takes full height and has the dark background */
+/* Ensure the body takes full height and has the new background */
 html,
 body,
 #root {
   height: 100%;
-  background-color: #0F172A;
-  /* Slate-900 */
+  background: linear-gradient(135deg, #fdf2f8 0%, #ffffff 100%); /* Pinkish-white gradient */
+  color: #1e293b; /* Dark text for contrast */
 }
