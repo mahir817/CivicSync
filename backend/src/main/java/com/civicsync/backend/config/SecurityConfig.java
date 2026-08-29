@@ -46,11 +46,15 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/files/**").permitAll() 
+                // Specific rules MUST come before the general GET permitAll below —
+                // Spring Security matches in declared order, first match wins.
+                .requestMatchers(HttpMethod.GET, "/api/campaigns/pending").hasAnyRole("VERIFIER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/verify").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .headers(headers -> headers.frameOptions(frame -> frame.disable())) // for H2 console
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

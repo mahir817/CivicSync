@@ -27,6 +27,22 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.getAll());
     }
 
+    // Verifier/Admin only - powers the Verifier Dashboard queue
+    @GetMapping("/pending")
+    public ResponseEntity<?> getPending() {
+        return ResponseEntity.ok(campaignService.getPending());
+    }
+
+    // Public - powers the Campaign Detail page (Trust Trail)
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(campaignService.getById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(new AuthController.ErrorResponse(e.getMessage()));
+        }
+    }
+
     // Requires auth - creates a PENDING campaign tied to the logged-in user
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateCampaignRequest req, Authentication auth) {
@@ -38,7 +54,7 @@ public class CampaignController {
         }
     }
 
-    // Requires VERIFIER/ADMIN role - approves or rejects a pending campaign
+    // Verifier/Admin only - approves or rejects a pending campaign
     @PutMapping("/{id}/verify")
     public ResponseEntity<?> verify(@PathVariable Long id,
                                      @RequestParam boolean approve,

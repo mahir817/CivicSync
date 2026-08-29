@@ -31,6 +31,17 @@ public class CampaignService {
                 .stream().map(CampaignResponse::from).toList();
     }
 
+    public CampaignResponse getById(Long id) {
+    Campaign campaign = campaignRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Campaign not found"));
+    return CampaignResponse.from(campaign);
+    }
+
+    public List<CampaignResponse> getPending() {
+        return campaignRepository.findByStatus(Campaign.VerificationStatus.PENDING)
+                .stream().map(CampaignResponse::from).toList();
+    }
+
     public CampaignResponse create(CreateCampaignRequest req, String requesterEmail) {
         User requester = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
