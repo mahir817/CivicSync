@@ -20,6 +20,11 @@ export default function Login() {
         body: JSON.stringify({ email, password })
       });
       
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Unable to connect to backend server (Port 8081). Please ensure backend is running.');
+      }
+      
       const data = await response.json();
       
       if (!response.ok) {
@@ -27,7 +32,12 @@ export default function Login() {
       }
       
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('user', JSON.stringify({
+        id: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+        role: data.role
+      }));
       navigate('/home');
     } catch (err) {
       setError(err.message);

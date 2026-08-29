@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 
 export default function Register() {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('USER');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,8 +19,13 @@ export default function Register() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ fullName, email, password, role })
       });
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Unable to connect to backend server (Port 8081). Please ensure backend is running.');
+      }
       
       const data = await response.json();
       
@@ -28,7 +34,12 @@ export default function Register() {
       }
       
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('user', JSON.stringify({
+        id: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+        role: data.role
+      }));
       navigate('/home');
     } catch (err) {
       setError(err.message);
@@ -45,14 +56,14 @@ export default function Register() {
           <p className="text-slate-600 mt-2">Join CivicSync today</p>
         </div>
         {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">{error}</div>}
-        <form onSubmit={handleRegister} className="space-y-6">
+        <form onSubmit={handleRegister} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
             <input 
               type="text" 
               required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors"
               placeholder="Mahir Ahmed"
             />
@@ -79,10 +90,22 @@ export default function Register() {
               placeholder="••••••••"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors bg-white text-slate-800"
+            >
+              <option value="USER">User (General Citizen)</option>
+              <option value="VERIFIER">Verifier (Organization / Hospital / Shelter)</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors shadow-md shadow-emerald-600/20 disabled:opacity-50">
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors shadow-md shadow-emerald-600/20 disabled:opacity-50 mt-2">
             {loading ? 'Registering...' : 'Get Started'}
           </button>
         </form>
