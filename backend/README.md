@@ -1,46 +1,51 @@
-# CivicSync Backend — Gradle Edition (Groovy DSL)
+# CivicSync Backend
 
-Same code as the Maven version — Auth (JWT) + Campaign CRUD/verification, H2 in-memory DB —
-just built with Gradle instead of Maven, using Groovy syntax (`build.gradle`, not `.kts`).
-Nothing about the Java code changed, only the build tool.
+Backend for the CivicSync project, built with Spring Boot and Gradle.
 
-## One-time setup: generate the Gradle wrapper
+## Requirements
 
-This project ships without `gradlew` because it couldn't be generated in the sandbox that built it
-(no internet access to Gradle's distribution servers there). Do this once, on your own machine,
-with Gradle installed:
+* Java JDK
+* Gradle
+* MySQL / XAMPP
 
-```bash
-cd backend-gradle
-gradle wrapper --gradle-version 8.8
-```
+## Run the Backend
 
-This creates `gradlew`, `gradlew.bat`, and the `gradle/wrapper/` folder. After that, use `./gradlew`
-for everything below and you won't need Gradle installed globally anymore.
+### 1. Start MySQL
 
-Don't have Gradle installed at all? Install it first:
-- macOS: `brew install gradle`
-- Windows: `choco install gradle` or download from gradle.org
-- Linux: use [SDKMAN](https://sdkman.io/): `sdk install gradle`
+If using XAMPP, open **XAMPP Control Panel** and start **MySQL**.
 
-## Running it
+### 2. Go to the backend directory
 
 ```bash
-./gradlew bootRun
+cd backend
 ```
 
-Runs on `http://localhost:8080`, same as the Maven version. H2 console at `/h2-console`
-(JDBC URL: `jdbc:h2:mem:civicsync`, user `sa`, no password).
-
-## Building a jar
+### 3. Run the application
 
 ```bash
-./gradlew build
-java -jar build/libs/civicsync-backend-0.1.0.jar
+gradle bootRun
 ```
 
-## Why Gradle here, if you want to explain the switch in a review
-Gradle uses a build script (`build.gradle.kts`) instead of XML (`pom.xml`) — same dependencies,
-same Spring Boot version, same behavior. Gradle tends to build faster (incremental builds, caching)
-and is what most modern Spring Boot + Android-adjacent teams default to today, but Maven is equally
-valid — this is a tooling preference, not a functional change to the app.
+The backend will run at:
+
+```text
+http://localhost:8080
+```
+
+## Build
+
+To build the project:
+
+```bash
+gradle clean build
+```
+
+## Database
+
+Make sure MySQL is running and the database configuration in:
+
+```text
+src/main/resources/application.properties
+```
+
+matches your local MySQL setup.
