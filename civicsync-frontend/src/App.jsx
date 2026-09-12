@@ -3,6 +3,7 @@ import Index from './pages/Index';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Feed from './pages/Feed';
+import MapPage from './pages/MapPage';
 import './App.css';
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/home" element={<Feed />} />
+        <Route path="/map" element={<MapPage />} />
       </Routes>
     </Router>
   );

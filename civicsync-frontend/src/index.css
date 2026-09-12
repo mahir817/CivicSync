@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Custom Utilities */
 @layer utilities {
