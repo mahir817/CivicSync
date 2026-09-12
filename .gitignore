@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Environment / secrets
+.env
+*.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
