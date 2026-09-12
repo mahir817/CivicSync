@@ -61,7 +61,7 @@ const createCategoryPin = (category, type, confirmations = 0) => {
   return L.divIcon({
     className: 'custom-pin-wrapper',
     html: `
-      <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer;">
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
         <div style="
           width: 36px;
           height: 36px;
@@ -99,7 +99,7 @@ const createCategoryPin = (category, type, confirmations = 0) => {
 const userPickedIcon = L.divIcon({
   className: 'user-picked-pin',
   html: `
-    <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%);">
+    <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
       <div style="
         width: 42px;
         height: 42px;
@@ -175,6 +175,8 @@ export default function MapView({
   const [reportSeverity, setReportSeverity] = useState('Severe (Knee-deep)');
   const [reportBloodType, setReportBloodType] = useState('O+');
   const [reportGoal, setReportGoal] = useState('');
+  const [reportLat, setReportLat] = useState('');
+  const [reportLng, setReportLng] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
@@ -201,14 +203,24 @@ export default function MapView({
   };
 
   const openReportModalWithPin = (latlng = null) => {
+    let lat, lng;
     if (latlng) {
+      lat = latlng.lat;
+      lng = latlng.lng;
       setNewPin(latlng);
-      setReportLocationName(`Area near ${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`);
-    } else if (!newPin) {
+      setReportLocationName(`Area near ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    } else if (newPin) {
+      lat = newPin.lat;
+      lng = newPin.lng;
+    } else {
       // Default to central Dhaka if no pin clicked yet
-      setNewPin({ lat: DHAKA_CENTER[0], lng: DHAKA_CENTER[1] });
+      lat = DHAKA_CENTER[0];
+      lng = DHAKA_CENTER[1];
+      setNewPin({ lat, lng });
       setReportLocationName('Dhaka Central');
     }
+    setReportLat(lat.toFixed(6));
+    setReportLng(lng.toFixed(6));
     setIsReportModalOpen(true);
   };
 
@@ -216,8 +228,13 @@ export default function MapView({
     e.preventDefault();
     if (!reportTitle.trim()) return;
 
-    const lat = newPin ? newPin.lat : DHAKA_CENTER[0];
-    const lng = newPin ? newPin.lng : DHAKA_CENTER[1];
+    const lat = parseFloat(reportLat);
+    const lng = parseFloat(reportLng);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      showToast("Invalid coordinates! Please provide valid numbers.");
+      return;
+    }
 
     const newEntry = {
       title: reportTitle.trim(),
@@ -238,6 +255,8 @@ export default function MapView({
     setReportTitle('');
     setReportDesc('');
     setReportGoal('');
+    setReportLat('');
+    setReportLng('');
 
     // Center map to new report
     setTargetLocation([lat, lng]);
@@ -371,9 +390,10 @@ export default function MapView({
           scrollWheelZoom={true}
           className="w-full h-full bg-[#0F172A]"
         >
-          {/* OpenStreetMap Standard Tiles */}
+          {/* OpenStreetMap with Dark CSS Filter */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            className="dark-map-tiles"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
@@ -619,6 +639,38 @@ export default function MapView({
                   onChange={(e) => setReportLocationName(e.target.value)}
                   className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
                 />
+              </div>
+
+              {/* Exact Coordinates */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    placeholder="e.g. 23.8103"
+                    value={reportLat}
+                    onChange={(e) => setReportLat(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    placeholder="e.g. 90.4125"
+                    value={reportLng}
+                    onChange={(e) => setReportLng(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               {/* Category-Specific Fields */}
