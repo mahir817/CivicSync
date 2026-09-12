@@ -1,9 +1,15 @@
 package com.civicsync.backend.controller;
 
+import com.civicsync.backend.controller.AuthController.ErrorResponse;
+import com.civicsync.backend.dto.CampaignDtos;
 import com.civicsync.backend.dto.CampaignDtos.*;
 import com.civicsync.backend.entity.Campaign;
+import com.civicsync.backend.service.AttachmentService;
 import com.civicsync.backend.service.CampaignService;
 import jakarta.validation.Valid;
+
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +19,12 @@ import org.springframework.web.bind.annotation.*;
 public class CampaignController {
 
     private final CampaignService campaignService;
+    private final AttachmentService attachmentService;
 
-    public CampaignController(CampaignService campaignService) {
-        this.campaignService = campaignService;
-    }
+public CampaignController(CampaignService campaignService, AttachmentService attachmentService) {
+    this.campaignService = campaignService;
+    this.attachmentService = attachmentService;
+}
 
     // Public - powers the Home feed, no auth required to browse
     @GetMapping
@@ -64,5 +72,24 @@ public class CampaignController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new AuthController.ErrorResponse(e.getMessage()));
         }
+    }
+
+    @PostMapping(value = "/with-images", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ResponseEntity<?> createWithImages(
+        @RequestPart("campaign") CreateCampaignRequest req,
+        @RequestPart(value = "files", required = false) org.springframework.web.multipart.MultipartFile[] files,
+        Authentication auth) {
+             try {
+                 CampaignResponse created = campaignService.create(req, auth.getName());
+
+                    List<com.civicsync.backend.dto.AttachmentDtos.AttachmentResponse> attachments =
+                        (files != null && files.length > 0)
+                                ? attachmentService.upload(created.id(), files, auth.getName())
+                                : List.of();
+
+                    return ResponseEntity.ok(new CampaignDtos.CampaignWithAttachmentsResponse(created, attachments));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+            }
     }
 }

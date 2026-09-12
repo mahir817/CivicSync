@@ -47,12 +47,18 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/files/**").permitAll() 
-                // Specific rules MUST come before the general GET permitAll below —
-                // Spring Security matches in declared order, first match wins.
+                .requestMatchers("/api/files/**").permitAll()
+
+                // Civic + health features are public to browse/submit anonymously where noted —
+                // specific rules must come before the general campaign rules below.
+                .requestMatchers(HttpMethod.GET, "/api/civic-reports/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/symptom-reports").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/health-alerts").permitAll()
+
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/pending").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/verify").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/**").permitAll()
+
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

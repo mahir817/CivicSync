@@ -47,4 +47,9 @@ public class CampaignDtos {
             );
         }
     }
+
+    public record CampaignWithAttachmentsResponse(
+        CampaignResponse campaign,
+        java.util.List<com.civicsync.backend.dto.AttachmentDtos.AttachmentResponse> attachments
+    ) {}
 }
