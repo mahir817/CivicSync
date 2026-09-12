@@ -200,6 +200,9 @@ export default function MapView({
     // Reverse guess location name
     const approxName = `Lat: ${latlng.lat.toFixed(4)}, Lng: ${latlng.lng.toFixed(4)}`;
     setReportLocationName(approxName);
+    setReportLat(latlng.lat.toFixed(6));
+    setReportLng(latlng.lng.toFixed(6));
+    setIsReportModalOpen(true);
   };
 
   const openReportModalWithPin = (latlng = null) => {
@@ -642,34 +645,45 @@ export default function MapView({
               </div>
 
               {/* Exact Coordinates */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Latitude
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Exact Coordinates *
                   </label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    placeholder="e.g. 23.8103"
-                    value={reportLat}
-                    onChange={(e) => setReportLat(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsReportModalOpen(false);
+                      showToast("Click anywhere on the map to pick a location");
+                    }}
+                    className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded font-bold cursor-pointer transition-colors flex items-center gap-1"
+                  >
+                    <MapPin size={10} /> Pick on Map
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Longitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    placeholder="e.g. 90.4125"
-                    value={reportLng}
-                    onChange={(e) => setReportLng(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      placeholder="Lat (e.g. 23.8103)"
+                      value={reportLat}
+                      onChange={(e) => setReportLat(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      placeholder="Lng (e.g. 90.4125)"
+                      value={reportLng}
+                      onChange={(e) => setReportLng(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
 
