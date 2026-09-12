@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Custom Utilities */
 @layer utilities {
@@ -14,6 +19,11 @@
     scrollbar-width: none;
     /* Firefox */
   }
+}
+
+/* Invert standard bright OpenStreetMap tiles to Dark Mode */
+.dark-map-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
 
 /* Ensure the body takes full height and has the new background */
