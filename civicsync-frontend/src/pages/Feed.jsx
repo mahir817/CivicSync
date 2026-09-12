@@ -22,11 +22,18 @@ import {
   confirmReport, 
   resolveCoordinates 
 } from '../services/reportService';
+import HealthAlertBanner from '../components/HealthAlertBanner';
+import { campaignApi } from '../api/client';
 
 export default function Feed() {
   const [activeFilter, setActiveFilter] = useState('[All]');
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [imagePreview, setImagePreview] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [error, setError] = useState(null);
   
   // Composer state
   const [isComposing, setIsComposing] = useState(false);
@@ -149,6 +156,15 @@ export default function Feed() {
     };
   }, []);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePost = async () => {
     if (!title || !description) return;
 
@@ -166,12 +182,14 @@ export default function Feed() {
           locationName: location || 'Dhaka City',
           position: coords,
           severity: 'Severe (Knee-deep)',
-          requesterName: user ? user.fullName : 'Citizen Reporter'
+          requesterName: user ? user.fullName : 'Citizen Reporter',
+          image: imagePreview
         });
         
         setTitle('');
         setDescription('');
         setLocation('');
+        setImagePreview(null);
         setIsComposing(false);
         loadCampaigns();
         return;
@@ -180,23 +198,17 @@ export default function Feed() {
       // For standard campaigns (BLOOD, DISASTER, PET_CARE, CHARITY)
       if (token) {
         try {
-          const res = await fetch('/api/campaigns', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              title,
-              description,
-              category,
-              location,
-              goalAmount: goalAmount ? parseFloat(goalAmount) : null
-            })
-          });
-
-          if (!res.ok) {
-            console.warn("Backend rejected campaign, saving to local map store instead");
+          const payload = {
+            title,
+            description,
+            category,
+            location,
+            goalAmount: goalAmount ? parseFloat(goalAmount) : null,
+          };
+          if (files && files.length > 0) {
+            await campaignApi.createWithImages(payload, files);
+          } else {
+            await campaignApi.create(payload);
           }
         } catch (apiErr) {
           console.warn("Backend error, saving to local map store", apiErr);
@@ -212,13 +224,15 @@ export default function Feed() {
         position: coords,
         goalAmount: goalAmount ? parseFloat(goalAmount) : null,
         requesterName: user ? user.fullName : 'Citizen',
-        type: 'verified'
+        type: 'verified',
+        image: imagePreview
       });
 
       setTitle('');
       setDescription('');
       setLocation('');
       setGoalAmount('');
+      setImagePreview(null);
       setIsComposing(false);
       loadCampaigns();
     } catch (err) {
@@ -287,10 +301,16 @@ export default function Feed() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             </button>
             <button 
-              onClick={() => navigate('/home')}
+              onClick={() => navigate('/civic-reports')}
               className="flex items-center gap-2 px-4 h-full hover:text-slate-800 transition-colors cursor-pointer"
             >
-              <Bell size={18} /> Alerts
+              <Droplet size={18} /> Civic Reports
+            </button>
+            <button 
+              onClick={() => navigate('/report-symptom')}
+              className="flex items-center gap-2 px-4 h-full hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              <Bell size={18} /> Report Symptom
             </button>
           </div>
         </div>
@@ -302,12 +322,14 @@ export default function Feed() {
             <input
               type="text"
               placeholder="Search requests, reports, campaigns"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
               className="bg-white border border-pink-200 shadow-sm rounded-md py-1.5 pl-9 pr-4 text-sm w-72 focus:outline-none focus:border-blue-500 placeholder-slate-400"
             />
           </div>
 
           {user ? (
-            <div className="flex items-center gap-2 cursor-pointer">
+            <div onClick={() => navigate('/profile')} className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold border border-blue-200">
                 {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'U'}
               </div>
@@ -323,7 +345,9 @@ export default function Feed() {
         
         {/* Left Column (Feed) */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-6">
+          <HealthAlertBanner />
+          
+          <div className="flex items-center justify-between mb-6 mt-2">
             <h1 className="text-3xl font-bold text-slate-800">CivicSync Feed</h1>
             <span className="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs">
               Live Dhaka Updates
@@ -362,6 +386,14 @@ export default function Feed() {
                   onChange={e => setDescription(e.target.value)}
                   className="w-full bg-transparent text-sm focus:outline-none placeholder-slate-400 text-slate-600 resize-none h-20"
                 />
+                
+                {imagePreview && (
+                  <div className="relative inline-block mt-2">
+                    <img src={imagePreview} alt="Preview" className="h-20 w-auto rounded border border-slate-200 object-cover" />
+                    <button onClick={() => setImagePreview(null)} className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">x</button>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-3">
                   <select 
                     value={category} 
@@ -392,7 +424,21 @@ export default function Feed() {
                       className="text-sm border border-slate-200 rounded p-1.5 w-44 outline-none text-slate-600"
                     />
                   )}
+                  
+                  <label className="text-sm border border-slate-200 rounded p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-slate-50 text-slate-600 transition-colors">
+                    <div className="flex items-center gap-1">
+                      <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" onChange={handleImageChange} className="hidden" />
+                      <span>📷 Add Photos/Docs</span>
+                    </div>
+                  </label>
                 </div>
+                
+                {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
+                {files.length > 0 && (
+                  <div className="text-xs text-slate-500 mt-1">
+                    {files.length} file{files.length > 1 ? "s" : ""} selected: {files.map(f => f.name).join(", ")}
+                  </div>
+                )}
 
                 <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                   <span className="text-xs text-slate-400">
@@ -439,19 +485,30 @@ export default function Feed() {
 
             {loading ? (
               <div className="col-span-full py-16 flex justify-center text-slate-500">Loading campaigns & reports...</div>
-            ) : filteredCampaigns.length === 0 ? (
+            ) : filteredCampaigns.filter(c => 
+              !searchQuery || 
+              (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+              (c.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (c.location || '').toLowerCase().includes(searchQuery.toLowerCase())
+            ).length === 0 ? (
               <div className="col-span-full py-16 flex flex-col items-center justify-center text-slate-500 bg-white/50 border border-slate-200 rounded-xl border-dashed">
                 <span className="text-5xl mb-4 opacity-50">📭</span>
                 <p className="text-xl font-semibold text-slate-700 mb-2">No posts found</p>
                 <p className="text-sm">Be the first to post a civic report or request.</p>
               </div>
             ) : (
-              filteredCampaigns.map(camp => {
+              filteredCampaigns.filter(c => 
+                !searchQuery || 
+                (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (c.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (c.location || '').toLowerCase().includes(searchQuery.toLowerCase())
+              ).map(camp => {
                 const isWater = (camp.category || '').toUpperCase().includes('WATER');
                 const isConfirmed = camp.status === 'VERIFIED' || (camp.confirmations && camp.confirmations >= 3);
+                const needsDonation = ['BLOOD', 'CHARITY', 'DISASTER_RELIEF', 'PET_CARE'].includes(camp.category);
 
                 return (
-                  <div key={camp.id} className="bg-white border border-pink-100 shadow-sm rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+                  <div key={camp.id} onClick={() => navigate(`/post/${camp.id}`)} className="bg-white border border-pink-100 shadow-sm rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer">
                     
                     {/* Header */}
                     <div className="flex justify-between items-start mb-3">
@@ -491,9 +548,16 @@ export default function Feed() {
                       </div>
                     )}
 
+                    {/* Image Preview */}
+                    {camp.image && (
+                      <div className="mb-3 rounded-lg overflow-hidden border border-slate-100">
+                        <img src={camp.image} alt="Post Attachment" className="w-full h-32 object-cover" />
+                      </div>
+                    )}
+
                     {/* Description */}
                     <div className="text-sm text-slate-600 mb-4 flex-1">
-                      <p>{camp.description}</p>
+                      <p className="line-clamp-3">{camp.description}</p>
                     </div>
 
                     {/* Specific Details */}
@@ -528,21 +592,34 @@ export default function Feed() {
 
                     {/* Footer Actions */}
                     <div className="flex justify-between border-t border-slate-100 pt-3 text-slate-500 text-xs mt-auto">
-                      <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer">
+                      <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                         <Heart size={15} /> Like
                       </button>
-                      <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer">
+                      <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                         <MessageSquare size={15} /> Comment
                       </button>
                       <button 
-                        onClick={() => navigate('/map')}
+                        onClick={(e) => { e.stopPropagation(); navigate('/map'); }}
                         className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
                       >
                         <MapPin size={15} /> View on Map
                       </button>
-                      <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer">
-                        <Share2 size={15} /> Share
-                      </button>
+                      
+                      {needsDonation && camp.goalAmount != null ? (
+                        <button 
+                          className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-medium cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); /* Donate Action */ }}
+                        >
+                          <Heart size={15} /> Donate
+                        </button>
+                      ) : (
+                        <button 
+                          className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Share2 size={15} /> Share
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

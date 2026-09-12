@@ -205,6 +205,13 @@ export function confirmReport(reportId) {
   return updated;
 }
 
+export function removeReport(reportId) {
+  const reports = getStoredReports();
+  const updated = reports.filter(r => r.id !== reportId);
+  saveReports(updated);
+  return updated;
+}
+
 export function resolveCoordinates(locationStr) {
   if (!locationStr) return DHAKA_CENTER;
   
