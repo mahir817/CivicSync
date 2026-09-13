@@ -41,6 +41,12 @@ public CampaignController(CampaignService campaignService, AttachmentService att
         return ResponseEntity.ok(campaignService.getPending());
     }
 
+    // Requires auth - powers "My Posts" on the Profile page
+    @GetMapping("/mine")
+    public ResponseEntity<?> getMine(Authentication auth) {
+        return ResponseEntity.ok(campaignService.getMine(auth.getName()));
+    }
+
     // Public - powers the Campaign Detail page (Trust Trail)
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable Long id) {
@@ -50,6 +56,7 @@ public CampaignController(CampaignService campaignService, AttachmentService att
             return ResponseEntity.status(404).body(new AuthController.ErrorResponse(e.getMessage()));
         }
     }
+
 
     // Requires auth - creates a PENDING campaign tied to the logged-in user
     @PostMapping

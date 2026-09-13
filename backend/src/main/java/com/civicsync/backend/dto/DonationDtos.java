@@ -15,6 +15,8 @@ public class DonationDtos {
 
     public record DonationResponse(
             Long id,
+            Long campaignId,
+            String campaignTitle,
             Donation.Type type,
             Double amount,
             String message,
@@ -24,6 +26,8 @@ public class DonationDtos {
         public static DonationResponse from(Donation d) {
             return new DonationResponse(
                     d.getId(),
+                    d.getCampaign().getId(),
+                    d.getCampaign().getTitle(),
                     d.getType(),
                     d.getAmount(),
                     d.getMessage(),

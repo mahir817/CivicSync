@@ -65,4 +65,11 @@ public class DonationService {
 
         return DonationResponse.from(saved);
     }
+
+    public List<DonationResponse> getMine(String donorEmail) {
+    User donor = userRepository.findByEmail(donorEmail)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    return donationRepository.findByDonorIdOrderByCreatedAtDesc(donor.getId())
+            .stream().map(DonationResponse::from).toList();
+}
 }

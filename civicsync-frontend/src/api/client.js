@@ -54,6 +54,9 @@ export const campaignApi = {
   },
 };
 
+campaignApi.getMine = () => api.get('/campaigns/mine');
+donationApi.getMine = () => api.get('/donations/mine');
+
 // Attachment API
 export const attachmentApi = {
   getForCampaign: (campaignId) => api.get(`/campaigns/${campaignId}/attachments`),
@@ -67,3 +70,4 @@ export const commentApi = {
   getForCivicReport: (reportId) => api.get(`/civic-reports/${reportId}/comments`),
   addToCivicReport: (reportId, content) => api.post(`/civic-reports/${reportId}/comments`, { content }),
 };
+

@@ -70,4 +70,11 @@ public class CampaignService {
 
         return CampaignResponse.from(campaignRepository.save(campaign));
     }
+
+    public List<CampaignResponse> getMine(String requesterEmail) {
+    User requester = userRepository.findByEmail(requesterEmail)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    return campaignRepository.findByRequesterIdOrderByCreatedAtDesc(requester.getId())
+            .stream().map(CampaignResponse::from).toList();
+}
 }

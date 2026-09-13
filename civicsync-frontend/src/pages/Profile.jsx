@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Edit2, MapPin, Mail, Phone, Calendar, Heart, Award } from 'lucide-react';
-import { getStoredReports } from '../services/reportService';
+import { User, Edit2, MapPin, Mail, Phone, Calendar, Heart } from 'lucide-react';
+import { campaignApi, donationApi } from '../api/client';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -10,17 +10,20 @@ export default function Profile() {
 
   const [activeTab, setActiveTab] = useState('posts');
   const [userPosts, setUserPosts] = useState([]);
-  const [isEditing, setIsEditing] = useState(false);
+  const [userDonations, setUserDonations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
       return;
     }
-    const reports = getStoredReports();
-    // Filter posts created by this user
-    const posts = reports.filter(r => r.requesterName === user.fullName);
-    setUserPosts(posts);
+    Promise.all([campaignApi.getMine(), donationApi.getMine()])
+      .then(([postsRes, donationsRes]) => {
+        setUserPosts(postsRes.data);
+        setUserDonations(donationsRes.data);
+      })
+      .finally(() => setLoading(false));
   }, [user, navigate]);
 
   if (!user) return null;
@@ -131,36 +134,43 @@ export default function Profile() {
             )}
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Dummy donations data */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                  <Heart size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Flood Relief Fund</h4>
-                  <p className="text-xs text-slate-500">Aug 20, 2026</p>
-                </div>
-              </div>
-              <div className="font-bold text-emerald-600 text-lg">৳500</div>
+  <div className="space-y-4">
+    {userDonations.length === 0 ? (
+      <div className="text-center py-12 text-slate-500 bg-white rounded-xl border border-dashed border-slate-300">
+        You haven't made any donations yet.
+      </div>
+    ) : (
+      userDonations.map((d) => (
+        <div
+          key={d.id}
+          onClick={() => navigate(`/post/${d.campaignId}`)}
+          className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer hover:shadow-md transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              d.type === 'MONETARY' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+            }`}>
+              <Heart size={20} />
             </div>
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-                  <Heart size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">O+ Blood Needed</h4>
-                  <p className="text-xs text-slate-500">Jul 12, 2026</p>
-                </div>
-              </div>
-              <div className="font-bold text-slate-600 text-sm bg-slate-100 px-3 py-1 rounded-full">Pledged</div>
+            <div>
+              <h4 className="font-bold text-slate-800">{d.campaignTitle}</h4>
+              <p className="text-xs text-slate-500">
+                {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
             </div>
           </div>
+          {d.type === 'MONETARY' ? (
+            <div className="font-bold text-emerald-600 text-lg">৳{d.amount}</div>
+          ) : (
+            <div className="font-bold text-slate-600 text-sm bg-slate-100 px-3 py-1 rounded-full">Pledged</div>
+          )}
+        </div>
+          ))
         )}
+      </div>
+    )}
 
-      </main>
+    </main>
     </div>
   );
 }

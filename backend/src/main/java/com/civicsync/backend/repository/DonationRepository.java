@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface DonationRepository extends JpaRepository<Donation, Long> {
     List<Donation> findByCampaignIdOrderByCreatedAtDesc(Long campaignId);
+    List<Donation> findByDonorIdOrderByCreatedAtDesc(Long donorId);
 }

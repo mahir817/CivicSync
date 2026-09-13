@@ -1,98 +1,170 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getStoredReports, removeReport } from '../services/reportService';
-import { ArrowLeft, MapPin, Heart, Share2, MessageSquare, Trash2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Heart, Share2, MessageSquare } from 'lucide-react';
 import DonateModal from '../components/DonateModal';
 import CommentSection from '../components/CommentSection';
-import { donationApi, commentApi } from '../api/client';
+import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi } from '../api/client';
+
+const CATEGORY_LABELS = {
+  BLOOD: '🩸 Blood Donation',
+  PET_CARE: '🐾 Pet Care',
+  CHARITY: '❤️ Charity',
+  DISASTER_RELIEF: '🌊 Disaster Relief',
+};
 
 export default function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [post, setPost] = useState(null);
-  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [isCivic, setIsCivic] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [donations, setDonations] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [showDonateModal, setShowDonateModal] = useState(false);
 
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
 
   useEffect(() => {
-    const reports = getStoredReports();
-    const found = reports.find(r => String(r.id) === id);
-    setPost(found);
-    
-    // Fetch donations
-    donationApi.getForCampaign(id).then((res) => setDonations(res.data)).catch(() => {});
+    let cancelled = false;
+
+    // Try as a Campaign first. If it 404s, fall back to CivicReport.
+    // These are two separate tables on the backend with no shared ID space,
+    // so this is the only reliable way to figure out which one a given
+    // numeric id belongs to without changing the route structure.
+    campaignApi.getById(id)
+      .then((res) => {
+        if (cancelled) return;
+        setPost(res.data);
+        setIsCivic(false);
+
+        donationApi.getForCampaign(id).then((r) => !cancelled && setDonations(r.data)).catch(() => {});
+        attachmentApi.getForCampaign(id).then((r) => !cancelled && setAttachments(r.data)).catch(() => {});
+      })
+      .catch(() => {
+        civicReportApi.getActive()
+          .then((res) => {
+            if (cancelled) return;
+            const found = res.data.find((r) => String(r.id) === String(id));
+            if (found) {
+              setPost(found);
+              setIsCivic(true);
+            } else {
+              setNotFound(true);
+            }
+          })
+          .catch(() => !cancelled && setNotFound(true));
+      });
+
+    return () => { cancelled = true; };
   }, [id]);
 
-  if (!post) {
+  if (notFound) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <h2 className="text-2xl font-bold mb-4 text-slate-800">Post not found</h2>
-        <button onClick={() => navigate('/home')} className="text-blue-600 hover:underline">Go back Home</button>
+        <button onClick={() => navigate('/home')} className="text-blue-600 hover:underline">
+          Go back Home
+        </button>
       </div>
     );
   }
 
-  const isOwner = user && user.fullName === post.requesterName;
-  const needsDonation = ['BLOOD', 'CHARITY', 'DISASTER_RELIEF', 'PET_CARE'].includes(post.category);
+  if (!post) {
+    return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading...</div>;
+  }
 
-  const handleDelete = () => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
-      removeReport(post.id);
-      navigate('/home');
-    }
-  };
+  // --- Normalize field differences between Campaign and CivicReport shapes ---
+  const title = isCivic ? 'Water-Clogging Report' : post.title;
+  const description = post.description;
+  const categoryLabel = isCivic ? '💧 Water Clogging' : (CATEGORY_LABELS[post.category] || post.category);
+  const requesterName = isCivic ? post.reporterName : post.requesterName;
+  const locationLabel = isCivic
+    ? `${post.latitude.toFixed(4)}, ${post.longitude.toFixed(4)}`
+    : post.location;
+  const goalAmount = isCivic ? null : post.goalAmount;
+  const raisedAmount = isCivic ? null : post.raisedAmount;
+  const canDonate = !isCivic && post.status === 'VERIFIED';
+  const isOwner = user && user.fullName === requesterName;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-6">
       <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <button onClick={() => navigate('/home')} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 mb-6 font-medium">
-          <ArrowLeft size={16} /> Back to Feed
+        <button
+          onClick={() => navigate(isCivic ? '/civic-reports' : '/home')}
+          className="flex items-center gap-1 text-slate-500 hover:text-slate-800 mb-6 font-medium"
+        >
+          <ArrowLeft size={16} /> Back
         </button>
 
         <div className="flex justify-between items-start mb-4">
           <div>
             <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit mb-2">
-              {post.category.replace('_', ' ')}
+              {categoryLabel}
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 leading-tight">{post.title}</h1>
-            <div className="text-sm text-slate-500 mt-2">Posted by <span className="font-semibold text-slate-700">{post.requesterName}</span></div>
+            <h1 className="text-2xl font-bold text-slate-900 leading-tight">{title}</h1>
+            <div className="text-sm text-slate-500 mt-2">
+              {isCivic ? 'Reported by' : 'Posted by'}{' '}
+              <span className="font-semibold text-slate-700">{requesterName}</span>
+            </div>
           </div>
-          {isOwner && (
-            <button onClick={handleDelete} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Post">
-              <Trash2 size={18} />
-            </button>
-          )}
         </div>
 
-        {post.location && (
+        {locationLabel && (
           <div className="flex items-center gap-1.5 text-sm text-slate-600 mb-6 bg-slate-50 p-2 rounded-lg border border-slate-100">
-            <MapPin size={16} className="text-blue-500" /> {post.locationName || post.location}
+            <MapPin size={16} className="text-blue-500" /> {locationLabel}
           </div>
         )}
 
-        {post.image && (
-          <div className="mb-6 rounded-xl overflow-hidden border border-slate-200">
-            <img src={post.image} alt="Post Attachment" className="w-full h-auto object-cover max-h-96" />
+        {/* Attachments — images shown inline, docs as download links. Campaigns only. */}
+        {!isCivic && attachments.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {attachments.map((a) =>
+              a.fileType.startsWith('image/') ? (
+                <img
+                  key={a.id}
+                  src={`http://localhost:8080${a.url}`}
+                  alt={a.fileName}
+                  className="w-28 h-28 object-cover rounded-lg border border-slate-200"
+                />
+              ) : (
+                <a
+                  key={a.id}
+                  href={`http://localhost:8080${a.url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700"
+                >
+                  📄 {a.fileName}
+                </a>
+              )
+            )}
           </div>
         )}
 
         <div className="text-slate-700 whitespace-pre-wrap leading-relaxed mb-8 border-l-4 border-slate-200 pl-4 py-1">
-          {post.description}
+          {description}
         </div>
 
-        {post.goalAmount != null && (
+        {goalAmount != null && (
           <div className="mb-8 bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
             <div className="flex justify-between items-end mb-2">
-              <div className="text-xs text-emerald-800 font-semibold uppercase tracking-wider">Fundraising Goal</div>
-              <div className="text-emerald-700 font-bold">৳{post.raisedAmount || 0} <span className="text-emerald-600/70 text-sm font-normal">raised of ৳{post.goalAmount}</span></div>
+              <div className="text-xs text-emerald-800 font-semibold uppercase tracking-wider">
+                Fundraising Goal
+              </div>
+              <div className="text-emerald-700 font-bold">
+                ৳{raisedAmount || 0}{' '}
+                <span className="text-emerald-600/70 text-sm font-normal">
+                  raised of ৳{goalAmount}
+                </span>
+              </div>
             </div>
             <div className="w-full bg-emerald-200/50 rounded-full h-2">
-              <div 
-                className="bg-emerald-500 h-2 rounded-full transition-all duration-500" 
-                style={{ width: `${Math.min(100, ((post.raisedAmount || 0) / post.goalAmount) * 100)}%` }}
-              ></div>
+              <div
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, ((raisedAmount || 0) / goalAmount) * 100)}%` }}
+              />
             </div>
           </div>
         )}
@@ -101,13 +173,20 @@ export default function PostDetail() {
           <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors font-medium">
             <Heart size={18} /> Like
           </button>
+
           <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors font-medium">
             <MessageSquare size={18} /> Comment
           </button>
-          {post.type === 'verified' && needsDonation ? (
-            <button 
+
+          {canDonate ? (
+            <button
               onClick={() => setShowDonateModal(true)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white transition-colors font-semibold shadow-sm ${post.category === 'BLOOD' ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white transition-colors font-semibold shadow-sm ${
+                post.category === 'BLOOD'
+                  ? 'bg-red-500 hover:bg-red-600'
+                  : 'bg-emerald-500 hover:bg-emerald-600'
+              }`}
+            >
               <Heart size={18} /> {post.category === 'BLOOD' ? 'I can donate' : 'Donate'}
             </button>
           ) : (
@@ -117,23 +196,39 @@ export default function PostDetail() {
           )}
         </div>
 
-        {donations.length > 0 && (
+        {!isCivic && donations.length > 0 && (
           <div className="mt-8 border-t border-slate-200 pt-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Supporters ({donations.length})</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">
+              Supporters ({donations.length})
+            </h3>
+
             <div className="space-y-4">
               {donations.map((d) => (
                 <div key={d.id} className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                   <strong className="text-slate-800">{d.donorName}</strong>
-                  {d.type === "MONETARY" && <span className="text-slate-600"> donated {d.amount} BDT</span>}
-                  {d.type === "PLEDGE" && <span className="text-slate-600"> pledged to help</span>}
-                  {d.message && <p className="text-sm text-slate-500 mt-1 italic">"{d.message}"</p>}
+
+                  {d.type === 'MONETARY' && (
+                    <span className="text-slate-600"> donated {d.amount} BDT</span>
+                  )}
+
+                  {d.type === 'PLEDGE' && (
+                    <span className="text-slate-600"> pledged to help</span>
+                  )}
+
+                  {d.message && (
+                    <p className="text-sm text-slate-500 mt-1 italic">"{d.message}"</p>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <CommentSection postId={post.id} postType={post.isCivic ? "civicReport" : "campaign"} commentApi={commentApi} />
+        <CommentSection
+          postId={post.id}
+          postType={isCivic ? 'civicReport' : 'campaign'}
+          commentApi={commentApi}
+        />
       </div>
 
       {showDonateModal && (
@@ -142,9 +237,12 @@ export default function PostDetail() {
           onClose={() => setShowDonateModal(false)}
           onSuccess={(newDonation) => {
             setDonations((prev) => [newDonation, ...prev]);
-            // Refresh post logic could go here if we were using a real API for the post detail, but we use localStorage
-            if (newDonation.type === "MONETARY") {
-              setPost(prev => ({...prev, raisedAmount: (prev.raisedAmount || 0) + newDonation.amount}));
+
+            if (newDonation.type === 'MONETARY') {
+              setPost((prev) => ({
+                ...prev,
+                raisedAmount: (prev.raisedAmount || 0) + newDonation.amount,
+              }));
             }
           }}
         />

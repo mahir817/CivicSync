@@ -9,4 +9,5 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     List<Campaign> findByCategory(Campaign.Category category);
     List<Campaign> findByStatus(Campaign.VerificationStatus status);
     List<Campaign> findAllByOrderByCreatedAtDesc();
+    List<Campaign> findByRequesterIdOrderByCreatedAtDesc(Long requesterId);
 }
