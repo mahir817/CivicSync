@@ -55,12 +55,19 @@ export default function Feed() {
     try {
       let backendData = [];
       try {
-        const res = await fetch('/api/campaigns');
-        if (res.ok) {
-          backendData = await res.json();
+        const res = await campaignApi.getAll();
+        if (Array.isArray(res.data)) {
+          backendData = res.data;
         }
-      } catch (e) {
-        console.warn('Backend not responding, falling back to local storage', e);
+      } catch (apiErr) {
+        try {
+          const res = await fetch('/api/campaigns');
+          if (res.ok) {
+            backendData = await res.json();
+          }
+        } catch (e) {
+          console.warn('Backend not responding, falling back to local storage', e);
+        }
       }
 
       const storedReports = getStoredReports();
@@ -70,13 +77,14 @@ export default function Feed() {
         description: r.description,
         category: r.category,
         status: r.type === 'verified' ? 'VERIFIED' : 'PENDING',
-        location: r.locationName || 'Dhaka',
+        location: r.locationName || r.location || 'Dhaka',
         goalAmount: r.goalAmount || null,
         raisedAmount: r.raisedAmount || 0,
         requesterName: r.requesterName || 'Citizen Reporter',
         createdAt: r.createdAt,
         confirmations: r.confirmations || 0,
         severity: r.severity,
+        image: r.image,
         isCivic: r.isCivic || r.category === 'WATER_LOGGING'
       }));
 
@@ -96,54 +104,7 @@ export default function Feed() {
   };
 
   useEffect(() => {
-    let ignore = false;
-    const fetchInitial = async () => {
-      try {
-        let backendData = [];
-        try {
-          const res = await fetch('/api/campaigns');
-          if (res.ok) {
-            backendData = await res.json();
-          }
-        } catch (e) {
-          console.warn('Backend not responding, falling back to local storage', e);
-        }
-
-        const storedReports = getStoredReports();
-        const civicFeedItems = storedReports.map(r => ({
-          id: r.id,
-          title: r.title,
-          description: r.description,
-          category: r.category,
-          status: r.type === 'verified' ? 'VERIFIED' : 'PENDING',
-          location: r.locationName || 'Dhaka',
-          goalAmount: r.goalAmount || null,
-          raisedAmount: r.raisedAmount || 0,
-          requesterName: r.requesterName || 'Citizen Reporter',
-          createdAt: r.createdAt,
-          confirmations: r.confirmations || 0,
-          severity: r.severity,
-          isCivic: r.isCivic || r.category === 'WATER_LOGGING'
-        }));
-
-        const backendIds = new Set(backendData.map(b => String(b.id)));
-        const combined = [
-          ...civicFeedItems.filter(c => !backendIds.has(String(c.id))),
-          ...backendData
-        ];
-
-        combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        if (!ignore) {
-          setCampaigns(combined);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Failed to fetch campaigns", err);
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    fetchInitial();
+    loadCampaigns();
 
     const handleReportsUpdate = () => {
       loadCampaigns();
@@ -151,7 +112,6 @@ export default function Feed() {
 
     window.addEventListener('civicsync:reports_updated', handleReportsUpdate);
     return () => {
-      ignore = true;
       window.removeEventListener('civicsync:reports_updated', handleReportsUpdate);
     };
   }, []);
@@ -508,7 +468,11 @@ export default function Feed() {
                 const needsDonation = ['BLOOD', 'CHARITY', 'DISASTER_RELIEF', 'PET_CARE'].includes(camp.category);
 
                 return (
-                  <div key={camp.id} onClick={() => navigate(`/post/${camp.id}`)} className="bg-white border border-pink-100 shadow-sm rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer">
+                  <div 
+                    key={camp.id} 
+                    onClick={() => navigate(`/post/${camp.id}`, { state: { post: camp } })} 
+                    className="bg-white border border-pink-100 shadow-sm rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+                  >
                     
                     {/* Header */}
                     <div className="flex justify-between items-start mb-3">
@@ -595,7 +559,13 @@ export default function Feed() {
                       <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                         <Heart size={15} /> Like
                       </button>
-                      <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          navigate(`/post/${camp.id}`, { state: { post: camp } }); 
+                        }}
+                      >
                         <MessageSquare size={15} /> Comment
                       </button>
                       <button 
@@ -608,14 +578,23 @@ export default function Feed() {
                       {needsDonation && camp.goalAmount != null ? (
                         <button 
                           className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-medium cursor-pointer"
-                          onClick={(e) => { e.stopPropagation(); /* Donate Action */ }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            navigate(`/post/${camp.id}`, { state: { post: camp } }); 
+                          }}
                         >
                           <Heart size={15} /> Donate
                         </button>
                       ) : (
                         <button 
-                          className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer"
-                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(`${window.location.origin}/post/${camp.id}`);
+                              alert('Post link copied to clipboard!');
+                            }
+                          }}
                         >
                           <Share2 size={15} /> Share
                         </button>

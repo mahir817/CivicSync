@@ -8,6 +8,7 @@ import com.civicsync.backend.repository.CivicReportRepository;
 import com.civicsync.backend.repository.CommentRepository;
 import com.civicsync.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -27,11 +28,13 @@ public class CommentService {
         this.civicReportRepository = civicReportRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<CommentResponse> getFor(Comment.PostType postType, Long postId) {
         return commentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(postType, postId)
                 .stream().map(CommentResponse::from).toList();
     }
 
+    @Transactional
     public CommentResponse create(Comment.PostType postType, Long postId, CreateCommentRequest req, String authorEmail) {
         // Confirm the target post actually exists before allowing a comment on it
         boolean exists = postType == Comment.PostType.CAMPAIGN

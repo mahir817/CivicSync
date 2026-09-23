@@ -17,6 +17,23 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
         ? { type: "PLEDGE", message: message || null }
         : { type: "MONETARY", amount: parseFloat(amount), message: message || null };
 
+      if (String(campaign.id).startsWith('report-') || isNaN(Number(campaign.id))) {
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const localDonation = {
+          id: 'don-' + Date.now(),
+          campaignId: campaign.id,
+          donorName: user ? user.fullName : 'Anonymous Supporter',
+          type: payload.type,
+          amount: payload.amount || 0,
+          message: payload.message,
+          createdAt: new Date().toISOString()
+        };
+        onSuccess(localDonation);
+        onClose();
+        return;
+      }
+
       const res = await donationApi.create(campaign.id, payload);
       onSuccess(res.data);
       onClose();

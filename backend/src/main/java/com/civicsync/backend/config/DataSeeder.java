@@ -4,6 +4,9 @@ import com.civicsync.backend.entity.Campaign;
 import com.civicsync.backend.entity.User;
 import com.civicsync.backend.repository.CampaignRepository;
 import com.civicsync.backend.repository.UserRepository;
+import com.civicsync.backend.entity.CivicReport;
+import com.civicsync.backend.repository.CivicReportRepository;
+import com.civicsync.backend.repository.CommentRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -16,20 +19,34 @@ public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final CampaignRepository campaignRepository;
+    private final CivicReportRepository civicReportRepository;
+    private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(
             UserRepository userRepository,
             CampaignRepository campaignRepository,
+            CivicReportRepository civicReportRepository,
+            CommentRepository commentRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
         this.campaignRepository = campaignRepository;
+        this.civicReportRepository = civicReportRepository;
+        this.commentRepository = commentRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
+
+        if (civicReportRepository.count() == 0 && userRepository.count() > 0) {
+            User reporter = userRepository.findByEmail("tanvir@example.com")
+                    .orElseGet(() -> userRepository.findAll().get(0));
+            seedCivicReport(reporter, 23.8069, 90.3687, "Severe Waterlogging at Mirpur 10 Circle: Knee-deep water on main road towards Kazipara. Vehicles stranded. Avoid Begum Rokeya Sarani.", CivicReport.Status.UNCONFIRMED, 18);
+            seedCivicReport(reporter, 23.7516, 90.3934, "Drainage Overflow at Karwan Bazar: Underpass drainage clogged after morning downpour. Stagnant water blocking lane entries.", CivicReport.Status.UNCONFIRMED, 6);
+            System.out.println("Seeded initial civic reports.");
+        }
 
         // Do not seed again if users already exist in MySQL
         if (userRepository.count() > 0) {
@@ -268,5 +285,16 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         campaignRepository.save(campaign);
+    }
+
+    private void seedCivicReport(User reporter, Double lat, Double lng, String desc, CivicReport.Status status, int confirmations) {
+        CivicReport report = new CivicReport();
+        report.setReporter(reporter);
+        report.setLatitude(lat);
+        report.setLongitude(lng);
+        report.setDescription(desc);
+        report.setStatus(status);
+        report.setConfirmationCount(confirmations);
+        civicReportRepository.save(report);
     }
 }

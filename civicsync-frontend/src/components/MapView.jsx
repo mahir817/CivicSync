@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -160,6 +161,7 @@ export default function MapView({
   isFullScreen = false, 
   onClose
 }) {
+  const navigate = useNavigate();
   const [reports, setReports] = useState(() => getStoredReports());
   const [newPin, setNewPin] = useState(null);
   const [activeCategory, setActiveCategory] = useState('ALL');
@@ -441,7 +443,11 @@ export default function MapView({
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-bold text-sm text-slate-900 leading-snug">
+                    <h3 
+                      onClick={() => navigate(`/post/${item.id}`, { state: { post: item } })}
+                      className="font-bold text-sm text-slate-900 leading-snug cursor-pointer hover:text-blue-600 transition-colors"
+                      title="Click to view details"
+                    >
                       {item.title}
                     </h3>
 
@@ -473,20 +479,28 @@ export default function MapView({
                     )}
 
                     {/* Action Buttons in Popup */}
-                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex flex-col gap-1.5">
                       {isWater ? (
-                        <button
-                          onClick={(e) => handleConfirmHazard(item.id, e)}
-                          className="flex-1 flex items-center justify-center gap-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-1.5 px-2 rounded shadow-sm transition-colors cursor-pointer"
-                        >
-                          <ThumbsUp size={12} /> Confirm Hazard ({item.confirmations || 0})
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleConfirmHazard(item.id, e)}
+                            className="flex-1 flex items-center justify-center gap-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-1.5 px-2 rounded shadow-sm transition-colors cursor-pointer"
+                          >
+                            <ThumbsUp size={12} /> Confirm Hazard ({item.confirmations || 0})
+                          </button>
+                          <button
+                            onClick={() => navigate(`/post/${item.id}`, { state: { post: item } })}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium py-1.5 px-2.5 rounded transition-colors cursor-pointer"
+                          >
+                            Details
+                          </button>
+                        </div>
                       ) : (
                         <button
-                          onClick={() => alert(`Connecting with request: "${item.title}"`)}
-                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-2 rounded shadow-sm transition-colors cursor-pointer"
+                          onClick={() => navigate(`/post/${item.id}`, { state: { post: item } })}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-2 rounded shadow-sm transition-colors cursor-pointer"
                         >
-                          View / Support Request
+                          View Details / Support
                         </button>
                       )}
                     </div>

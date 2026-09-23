@@ -4,6 +4,14 @@ export const api = axios.create({
   baseURL: 'http://localhost:8080/api',
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Donation API
 export const donationApi = {
   getForCampaign: (campaignId) => api.get(`/campaigns/${campaignId}/donations`),
@@ -70,4 +78,14 @@ export const commentApi = {
   getForCivicReport: (reportId) => api.get(`/civic-reports/${reportId}/comments`),
   addToCivicReport: (reportId, content) => api.post(`/civic-reports/${reportId}/comments`, { content }),
 };
+
+// Like API
+export const likeApi = {
+  getForCampaign: (campaignId) => api.get(`/campaigns/${campaignId}/likes`),
+  toggleForCampaign: (campaignId) => api.post(`/campaigns/${campaignId}/likes`),
+
+  getForCivicReport: (reportId) => api.get(`/civic-reports/${reportId}/likes`),
+  toggleForCivicReport: (reportId) => api.post(`/civic-reports/${reportId}/likes`),
+};
+
 

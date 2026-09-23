@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { civicReportApi } from "../api/client";
 
 const STATUS_LABELS = {
@@ -8,6 +8,7 @@ const STATUS_LABELS = {
 };
 
 export default function CivicReportsFeed() {
+  const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -44,7 +45,12 @@ export default function CivicReportsFeed() {
         {reports.map((r) => {
           const status = STATUS_LABELS[r.status] || STATUS_LABELS.UNCONFIRMED;
           return (
-            <div className="campaign-card" key={r.id}>
+            <div 
+              className="campaign-card" 
+              key={r.id}
+              onClick={() => navigate(`/post/${r.id}`, { state: { post: { ...r, isCivic: true } } })}
+              style={{ cursor: "pointer" }}
+            >
               <div className="campaign-card-header">
                 <span className="campaign-category">📍 {r.latitude.toFixed(4)}, {r.longitude.toFixed(4)}</span>
                 <span className="trust-badge" style={{ color: status.color, backgroundColor: status.bg }}>
@@ -55,7 +61,14 @@ export default function CivicReportsFeed() {
               <p className="campaign-requester">Reported by {r.reporterName} · {r.confirmationCount} confirmation{r.confirmationCount !== 1 ? "s" : ""}</p>
 
               {isAuthenticated && (
-                <button className="btn-primary-sm" style={{ marginTop: 10 }} onClick={() => handleConfirm(r.id)}>
+                <button 
+                  className="btn-primary-sm" 
+                  style={{ marginTop: 10 }} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleConfirm(r.id);
+                  }}
+                >
                   Confirm This
                 </button>
               )}
