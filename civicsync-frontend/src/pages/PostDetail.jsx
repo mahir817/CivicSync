@@ -177,7 +177,7 @@ export default function PostDetail() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center font-['Inter']">
+      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6 text-center font-['Inter']">
         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 text-2xl">
           ⚠️
         </div>
@@ -205,7 +205,7 @@ export default function PostDetail() {
 
   if (loading && !post) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-500 font-['Inter']">
+      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center text-slate-500 font-['Inter']">
         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-sm font-medium">Loading post details...</p>
       </div>
@@ -278,7 +278,7 @@ export default function PostDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-['Inter'] p-4 md:p-8">
+    <div className="min-h-screen bg-transparent text-slate-800 font-['Inter'] p-4 md:p-8">
       <div className="max-w-3xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
         
         {/* Navigation back */}
