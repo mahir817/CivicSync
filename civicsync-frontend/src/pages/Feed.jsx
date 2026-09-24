@@ -24,6 +24,7 @@ import {
 } from '../services/reportService';
 import HealthAlertBanner from '../components/HealthAlertBanner';
 import { campaignApi } from '../api/client';
+import Navbar from '../components/Navbar';
 
 export default function Feed() {
   const [activeFilter, setActiveFilter] = useState('[All]');
@@ -234,72 +235,10 @@ export default function Feed() {
       });
 
   return (
-    <div className="min-h-screen text-slate-800 font-['Inter']">
+    <div className="min-h-screen text-slate-800 font-['Inter'] bg-slate-50">
 
       {/* 1. Top Navigation Bar */}
-      <nav className="flex items-center justify-between px-6 bg-white/80 backdrop-blur-md border-b border-pink-100 h-16 sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-8 h-full">
-          {/* Logo */}
-          <div 
-            onClick={() => navigate('/home')}
-            className="flex items-center gap-2 text-xl font-bold text-blue-600 cursor-pointer"
-          >
-            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">C</div>
-            Civic<span className="text-slate-800">Sync</span>
-          </div>
-
-          {/* Nav Links */}
-          <div className="flex h-full text-sm font-medium text-slate-500">
-            <button className="flex items-center gap-2 px-4 h-full border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 font-semibold cursor-pointer">
-              <Home size={18} /> Home
-            </button>
-            <button 
-              onClick={() => navigate('/map')}
-              className="flex items-center gap-2 px-4 h-full hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              <MapPin size={18} /> Map
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            </button>
-            <button 
-              onClick={() => navigate('/civic-reports')}
-              className="flex items-center gap-2 px-4 h-full hover:text-slate-800 transition-colors cursor-pointer"
-            >
-              <Droplet size={18} /> Civic Reports
-            </button>
-            <button 
-              onClick={() => navigate('/report-symptom')}
-              className="flex items-center gap-2 px-4 h-full hover:text-slate-800 transition-colors cursor-pointer"
-            >
-              <Bell size={18} /> Report Symptom
-            </button>
-          </div>
-        </div>
-
-        {/* Right Actions */}
-        <div className="flex items-center gap-6">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search requests, reports, campaigns"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="bg-white border border-pink-200 shadow-sm rounded-md py-1.5 pl-9 pr-4 text-sm w-72 focus:outline-none focus:border-blue-500 placeholder-slate-400"
-            />
-          </div>
-
-          {user ? (
-            <div onClick={() => navigate('/profile')} className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold border border-blue-200">
-                {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'U'}
-              </div>
-              <span className="text-sm font-medium">{user.fullName}</span>
-            </div>
-          ) : (
-            <button onClick={() => navigate('/login')} className="text-sm font-medium text-blue-600 cursor-pointer">Login</button>
-          )}
-        </div>
-      </nav>
+      <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} showSearch={true} />
 
       <main className="max-w-[1600px] mx-auto px-6 py-8 flex gap-8">
         

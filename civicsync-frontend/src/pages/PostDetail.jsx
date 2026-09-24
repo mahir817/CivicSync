@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import DonateModal from '../components/DonateModal';
 import CommentSection from '../components/CommentSection';
-import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi } from '../api/client';
+import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi, likeApi } from '../api/client';
 import { getStoredReports, confirmReport, INITIAL_REPORTS } from '../services/reportService';
 
 const CATEGORY_LABELS = {
@@ -101,6 +101,16 @@ export default function PostDetail() {
             attachmentApi.getForCampaign(id)
               .then((r) => !cancelled && setAttachments(r.data))
               .catch(() => {});
+              
+            if (user) {
+              likeApi.getForCampaign(id)
+                .then((r) => {
+                  if (!cancelled) {
+                    setLikeCount(r.data.count);
+                    setLiked(r.data.liked);
+                  }
+                }).catch(() => {});
+            }
           }
           return;
         } catch (err) {
@@ -118,6 +128,15 @@ export default function PostDetail() {
             setIsCivic(true);
             setConfirmedCount(foundCivic.confirmationCount || 0);
             setLoading(false);
+            
+            if (user) {
+              likeApi.getForCivicReport(id).then(r => {
+                if (!cancelled) {
+                  setLikeCount(r.data.count);
+                  setLiked(r.data.liked);
+                }
+              }).catch(() => {});
+            }
           }
           return;
         }
@@ -439,9 +458,30 @@ export default function PostDetail() {
         {/* Interactive Action Bar */}
         <div className="flex items-center gap-3 border-t border-slate-100 pt-5">
           <button 
-            onClick={() => {
-              setLiked(!liked);
-              setLikeCount(liked ? likeCount - 1 : likeCount + 1);
+            onClick={async () => {
+              if (!user) {
+                alert("Please log in to like this post.");
+                return;
+              }
+              const isLocal = String(post.id).startsWith('report-') || isNaN(Number(post.id));
+              
+              const willBeLiked = !liked;
+              setLiked(willBeLiked);
+              setLikeCount(prev => willBeLiked ? prev + 1 : prev - 1);
+              
+              if (!isLocal) {
+                try {
+                  const apiCall = isWater 
+                    ? likeApi.toggleForCivicReport(post.id) 
+                    : likeApi.toggleForCampaign(post.id);
+                  const res = await apiCall;
+                  setLiked(res.data.liked);
+                  setLikeCount(res.data.count);
+                } catch (e) {
+                  setLiked(!willBeLiked);
+                  setLikeCount(prev => willBeLiked ? prev - 1 : prev + 1);
+                }
+              }
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
               liked 
