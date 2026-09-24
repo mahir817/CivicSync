@@ -50,7 +50,7 @@ export default function Profile() {
   const maxActivity = Math.max(...activityData.map(d => d.value));
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-['Inter']">
+    <div className="min-h-screen bg-transparent text-slate-800 font-['Inter']">
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 py-8">

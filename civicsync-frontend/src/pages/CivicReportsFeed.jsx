@@ -29,7 +29,7 @@ export default function CivicReportsFeed() {
   };
 
   return (
-    <div className="min-h-screen text-slate-800 font-['Inter'] bg-slate-50">
+    <div className="min-h-screen text-slate-800 font-['Inter'] bg-transparent">
       <Navbar />
       <div className="max-w-3xl mx-auto py-10 px-4">
         <div className="flex justify-between items-center mb-8 border-b border-slate-200 pb-5">

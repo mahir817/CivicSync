@@ -43,7 +43,7 @@ export default function ReportClogging() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-['Inter']">
+    <div className="min-h-screen bg-transparent flex flex-col font-['Inter']">
       <Navbar />
       <div className="flex-1 flex items-center justify-center p-4">
         <form className="bg-white rounded-xl shadow-md p-8 w-full max-w-md" onSubmit={handleSubmit}>

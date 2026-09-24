@@ -41,7 +41,7 @@ export default function MapPage() {
   const unconfirmedCount = reports.filter((r) => r.status === 'UNCONFIRMED').length;
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 text-slate-800 font-['Inter'] overflow-hidden">
+    <div className="h-screen flex flex-col bg-transparent text-slate-800 font-['Inter'] overflow-hidden">
 
       {/* Top Navigation Bar */}
       <nav className="flex items-center justify-between px-6 bg-white/90 backdrop-blur-md border-b border-pink-100 h-16 shrink-0 z-50">

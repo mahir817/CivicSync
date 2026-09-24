@@ -235,7 +235,7 @@ export default function Feed() {
       });
 
   return (
-    <div className="min-h-screen text-slate-800 font-['Inter'] bg-slate-50">
+    <div className="min-h-screen text-slate-800 font-['Inter'] bg-transparent">
 
       {/* 1. Top Navigation Bar */}
       <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} showSearch={true} />
@@ -254,19 +254,27 @@ export default function Feed() {
           </div>
 
           {/* 2. Composer Bar */}
-          <div className="bg-white border border-pink-100 shadow-sm rounded-xl p-4 mb-6 transition-all">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-6 transition-all focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-300">
             {!isComposing ? (
-              <div className="flex items-center gap-4 cursor-text" onClick={() => setIsComposing(true)}>
-                <input
-                  type="text"
-                  placeholder={`What do you need help with, or what civic hazard do you see, ${user ? user.fullName.split(' ')[0] : 'Citizen'}?`}
-                  className="flex-1 bg-transparent text-base focus:outline-none placeholder-slate-400 text-slate-800 pointer-events-none"
-                  readOnly
-                />
-                <div className="flex gap-2">
-                  <button className="px-6 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors shadow-md shadow-blue-500/20 cursor-pointer">
-                    Create Report / Post
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-4 cursor-text" onClick={() => setIsComposing(true)}>
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xs">
+                    {(user?.fullName || 'A')[0]}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder={`What do you need help with, ${user ? user.fullName.split(' ')[0] : 'Citizen'}?`}
+                    className="flex-1 bg-transparent text-base focus:outline-none placeholder-slate-400 text-slate-800 pointer-events-none"
+                    readOnly
+                  />
+                  <button className="px-5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors shadow-sm shadow-blue-500/20 cursor-pointer text-sm">
+                    Post
                   </button>
+                </div>
+                <div className="flex gap-4 px-12 text-sm text-slate-500">
+                  <button className="flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => { setIsComposing(true); setCategory('BLOOD'); }}><Droplet size={14} className="text-red-500"/> Blood</button>
+                  <button className="flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => { setIsComposing(true); setCategory('WATER_LOGGING'); }}><CloudRain size={14} className="text-sky-500"/> Flood</button>
+                  <button className="flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => { setIsComposing(true); setCategory('CHARITY'); }}><Heart size={14} className="text-emerald-500"/> Fund</button>
                 </div>
               </div>
             ) : (
@@ -369,12 +377,12 @@ export default function Feed() {
               <button 
                 key={filter} 
                 onClick={() => setActiveFilter(filter)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border cursor-pointer ${
+                className={`whitespace-nowrap cursor-pointer ${
                   filter === activeFilter 
-                    ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm font-semibold' 
-                    : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600 transition-colors'
+                    ? 'px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white shadow-sm shadow-blue-500/30' 
+                    : 'px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors'
                 }`}>
-                {filter}
+                {filter.replace('[', '').replace(']', '').toUpperCase()}
               </button>
             ))}
           </div>
@@ -410,7 +418,7 @@ export default function Feed() {
                   <div 
                     key={camp.id} 
                     onClick={() => navigate(`/post/${camp.id}`, { state: { post: camp } })} 
-                    className="bg-white border border-pink-100 shadow-sm rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+                    className="bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-sm hover:shadow-md transition-all rounded-2xl p-5 flex flex-col cursor-pointer"
                   >
                     
                     {/* Header */}
@@ -427,16 +435,21 @@ export default function Feed() {
                             </div>
                           ) : (
                             <div className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded w-fit mb-1 ${
-                              camp.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              camp.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm' : 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm'
                             }`}>
                               {camp.status === 'VERIFIED' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
                               {camp.status === 'VERIFIED' ? 'VERIFIED' : 'PENDING'}
                             </div>
                           )}
-                          <div className="text-xs text-slate-500">by {camp.requesterName}</div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center text-[9px] font-bold text-blue-700">
+                              {(camp.requesterName || 'A')[0]}
+                            </div>
+                            <div className="text-xs text-slate-500 font-medium">{camp.requesterName}</div>
+                          </div>
                         </div>
                       </div>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-slate-400 font-medium">
                         {camp.createdAt ? new Date(camp.createdAt).toLocaleDateString() : 'Recent'}
                       </span>
                     </div>

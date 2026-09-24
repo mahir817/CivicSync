@@ -25,7 +25,7 @@ export default function ReportSymptom() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen font-['Inter'] bg-slate-50 flex flex-col">
+      <div className="min-h-screen font-['Inter'] bg-transparent flex flex-col">
         <Navbar />
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-sm border border-emerald-100 text-center">
@@ -48,7 +48,7 @@ export default function ReportSymptom() {
   }
 
   return (
-    <div className="min-h-screen font-['Inter'] bg-slate-50 flex flex-col">
+    <div className="min-h-screen font-['Inter'] bg-transparent flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-center justify-center p-4">
         <form onSubmit={handleSubmit} className="max-w-md w-full bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
