@@ -53,7 +53,7 @@ export default function Profile() {
     <div className="min-h-screen bg-transparent text-slate-800 font-['Inter']">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 pt-28 pb-8">
         
         {/* Profile Header Card */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">

@@ -31,7 +31,7 @@ export default function CivicReportsFeed() {
   return (
     <div className="min-h-screen text-slate-800 font-['Inter'] bg-transparent">
       <Navbar />
-      <div className="max-w-3xl mx-auto py-10 px-4">
+      <div className="max-w-3xl mx-auto pt-28 pb-10 px-4">
         <div className="flex justify-between items-center mb-8 border-b border-slate-200 pb-5">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">Water-Clogging Reports</h1>

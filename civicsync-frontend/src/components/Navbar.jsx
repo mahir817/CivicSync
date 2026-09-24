@@ -1,6 +1,7 @@
 import { Home, MapPin, Droplet, Bell, Search, User, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
+import logoImg from '../assets/logo.png';
 
 export default function Navbar({ searchQuery, setSearchQuery, showSearch = false }) {
   const navigate = useNavigate();
@@ -31,94 +32,95 @@ export default function Navbar({ searchQuery, setSearchQuery, showSearch = false
   };
 
   return (
-    <nav className="flex items-center justify-between px-6 bg-white/80 backdrop-blur-md border-b border-pink-100 h-16 sticky top-0 z-50 shadow-sm">
-      <div className="flex items-center gap-8 h-full">
-        {/* Logo */}
-        <div 
-          onClick={() => navigate('/home')}
-          className="flex items-center gap-2 text-xl font-bold text-blue-600 cursor-pointer"
-        >
-          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">C</div>
-          Civic<span className="text-slate-800">Sync</span>
-        </div>
-
-        {/* Nav Links */}
-        <div className="flex h-full text-sm font-medium text-slate-500">
-          <button 
-            onClick={() => navigate('/home')}
-            className={`flex items-center gap-2 px-4 h-full cursor-pointer transition-colors ${isActive('/home') ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 font-semibold' : 'hover:text-blue-600'}`}>
-            <Home size={18} /> Home
-          </button>
-          <button 
-            onClick={() => navigate('/map')}
-            className={`flex items-center gap-2 px-4 h-full cursor-pointer transition-colors ${isActive('/map') ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 font-semibold' : 'hover:text-blue-600'}`}
-          >
-            <MapPin size={18} /> Map
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          </button>
-          <button 
-            onClick={() => navigate('/civic-reports')}
-            className={`flex items-center gap-2 px-4 h-full cursor-pointer transition-colors ${isActive('/civic-reports') ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 font-semibold' : 'hover:text-slate-800'}`}
-          >
-            <Droplet size={18} /> Civic Reports
-          </button>
-          <button 
-            onClick={() => navigate('/report-symptom')}
-            className={`flex items-center gap-2 px-4 h-full cursor-pointer transition-colors ${isActive('/report-symptom') ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 font-semibold' : 'hover:text-slate-800'}`}
-          >
-            <Bell size={18} /> Report Symptom
-          </button>
-        </div>
+    <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] bg-[#18181B] rounded-full p-2 pl-2 pr-2 border border-zinc-800 shadow-2xl backdrop-blur-md flex items-center justify-between gap-6 w-max">
+      
+      {/* 2. Left Element (Logo Badge) */}
+      <div 
+        onClick={() => navigate('/home')}
+        className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer flex-shrink-0 overflow-hidden"
+      >
+        <img src={logoImg} alt="CivicSync" className="w-6 h-6 object-contain" />
       </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center gap-6">
-        {showSearch && (
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search requests, reports, campaigns"
-              value={searchQuery}
-              onChange={e => setSearchQuery && setSearchQuery(e.target.value)}
-              className="bg-white border border-pink-200 shadow-sm rounded-md py-1.5 pl-9 pr-4 text-sm w-72 focus:outline-none focus:border-blue-500 placeholder-slate-400"
-            />
-          </div>
-        )}
+      {/* 3. Middle Links */}
+      <div className="flex items-center gap-6 md:gap-8 px-2">
+        <button 
+          onClick={() => navigate('/home')}
+          className={`text-sm font-medium transition-colors ${isActive('/home') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
+        >
+          Home
+        </button>
+        <button 
+          onClick={() => navigate('/map')}
+          className={`text-sm font-medium transition-colors ${isActive('/map') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
+        >
+          Map
+        </button>
+        <button 
+          onClick={() => navigate('/report-symptom')}
+          className={`text-sm font-medium transition-colors ${isActive('/report-symptom') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
+        >
+          Alerts
+        </button>
+        <button 
+          onClick={() => navigate('/civic-reports')}
+          className={`text-sm font-medium transition-colors ${isActive('/civic-reports') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
+        >
+          Civic Reports
+        </button>
+      </div>
 
+      {/* Optional Search Bar integrated into the dark theme */}
+      {showSearch && (
+        <div className="relative hidden lg:block">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={e => setSearchQuery && setSearchQuery(e.target.value)}
+            className="bg-zinc-800/50 border border-zinc-700 rounded-full py-1.5 pl-8 pr-4 text-xs w-48 text-zinc-200 focus:outline-none focus:border-zinc-500 placeholder-zinc-500 transition-all"
+          />
+        </div>
+      )}
+
+      {/* 4. Right Element (CTA / User Badge) */}
+      <div className="flex items-center">
         {user ? (
           <div className="relative" ref={dropdownRef}>
-            <div 
+            <button 
               onClick={() => setDropdownOpen(!dropdownOpen)} 
-              className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 py-1.5 px-2 rounded-lg transition-colors border border-transparent hover:border-slate-200"
+              className="bg-white text-zinc-950 rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-100 transition-colors flex items-center gap-2"
             >
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold border border-blue-200">
-                {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'U'}
-              </div>
-              <span className="text-sm font-medium text-slate-700">{user.fullName}</span>
-              <ChevronDown size={16} className={`text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-            </div>
+              {user.fullName ? user.fullName.split(' ')[0] : 'User'}
+              <ChevronDown size={14} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden z-50">
+              <div className="absolute right-0 mt-3 w-48 bg-[#18181B] rounded-xl shadow-xl border border-zinc-800 overflow-hidden z-50">
                 <button 
                   onClick={() => { setDropdownOpen(false); navigate('/profile'); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors text-left"
                 >
-                  <User size={16} className="text-slate-400" /> Profile & Analytics
+                  <User size={16} /> Profile & Analytics
                 </button>
-                <div className="h-px bg-slate-100 w-full"></div>
+                <div className="h-px bg-zinc-800 w-full"></div>
                 <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-zinc-800 transition-colors text-left"
                 >
-                  <LogOut size={16} className="text-red-400" /> Logout
+                  <LogOut size={16} /> Logout
                 </button>
               </div>
             )}
           </div>
         ) : (
-          <button onClick={() => navigate('/login')} className="text-sm font-medium text-blue-600 cursor-pointer">Login</button>
+          <button 
+            onClick={() => navigate('/login')} 
+            className="bg-white text-zinc-950 rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-100 transition-colors"
+          >
+            Login
+          </button>
         )}
       </div>
     </nav>

@@ -240,14 +240,14 @@ export default function Feed() {
       {/* 1. Top Navigation Bar */}
       <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} showSearch={true} />
 
-      <main className="max-w-[1600px] mx-auto px-6 py-8 flex gap-8">
+      <main className="max-w-[1600px] mx-auto px-6 pt-28 pb-8 flex gap-8">
         
         {/* Left Column (Feed) */}
         <div className="flex-1 min-w-0">
           <HealthAlertBanner />
           
           <div className="flex items-center justify-between mb-6 mt-2">
-            <h1 className="text-3xl font-bold text-slate-800">CivicSync Feed</h1>
+            <h1 className="text-3xl font-bold text-slate-800">Community Activity</h1>
             <span className="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs">
               Live Dhaka Updates
             </span>
@@ -467,7 +467,7 @@ export default function Feed() {
                     {/* Image Preview */}
                     {camp.image && (
                       <div className="mb-3 rounded-lg overflow-hidden border border-slate-100">
-                        <img src={camp.image} alt="Post Attachment" className="w-full h-32 object-cover" />
+                        <img src={camp.image} alt="Post Attachment" className="w-full h-48 object-cover" />
                       </div>
                     )}
 
