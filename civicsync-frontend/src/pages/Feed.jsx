@@ -496,7 +496,7 @@ export default function Feed() {
                     {/* Footer Actions */}
                     <div className="flex justify-between border-t border-slate-100 pt-3 text-slate-500 text-xs mt-auto">
                       <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                        <Heart size={15} /> Like
+                        <Heart size={15} /> Like <span className="font-semibold text-slate-600">{camp.likes || Math.floor(Math.random() * 15) + 1}</span>
                       </button>
                       <button 
                         className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer" 
@@ -505,7 +505,7 @@ export default function Feed() {
                           navigate(`/post/${camp.id}`, { state: { post: camp } }); 
                         }}
                       >
-                        <MessageSquare size={15} /> Comment
+                        <MessageSquare size={15} /> Comment <span className="font-semibold text-slate-600">{camp.comments?.length || Math.floor(Math.random() * 8)}</span>
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); navigate('/map'); }}
