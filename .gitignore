@@ -24,3 +24,5 @@ frontend/dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+run-backend.bat
