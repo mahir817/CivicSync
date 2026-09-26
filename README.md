@@ -21,4 +21,4 @@ See [backend/README.md](backend/README.md) for database, environment, and migrat
 
 ## Checks
 
-Run `npm run lint` and `npm run build` in the frontend, `./gradlew build` in the backend, and the Selenium suite against a disposable MySQL database. The browser suite checks the main workflows.
+Run `npm run lint` and `npm run build` in the frontend, `./gradlew build` in the backend, and the Selenium suite against a disposable MySQL database. For quick read-only Edge checks, run the three [standalone Selenium scripts](selenium-tests/README.md#simple-edge-scripts).
