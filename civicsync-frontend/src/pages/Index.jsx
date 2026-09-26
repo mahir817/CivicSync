@@ -1,101 +1,37 @@
-import { Link } from 'react-router-dom';
-import catVideo from '../assets/cat.mp4';
-import { Shield, Users, Zap, Heart } from 'lucide-react';
+﻿import { Link } from 'react-router-dom';
+import { ShieldCheck, MapPinned, HeartPulse, ArrowRight } from 'lucide-react';
+import video from '../assets/cat.mp4';
+import heroArt from '../assets/bg.jpeg';
+import { useLocale } from '../i18n';
 
 export default function Index() {
-  return (
-    <div className="bg-slate-50 font-['Inter']">
-      {/* Video Hero Section */}
-      <div className="relative w-full h-screen overflow-hidden flex items-center">
-        {/* Background Video */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src={catVideo} type="video/mp4" />
-        </video>
-
-        {/* Hero Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-8 w-full">
-          <div className="max-w-xl space-y-4">
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 drop-shadow-md">
-              Civic<span className="text-blue-600">Sync</span>
-            </h1>
-            <p className="text-base md:text-lg text-slate-800 drop-shadow-sm leading-relaxed">
-              Your all-in-one verified community platform where blood, pet care, charity, and disaster relief requests get public attention.
-            </p>
-            <div className="flex gap-3 pt-2">
-              <Link
-                to="/register"
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-sm transition-all shadow-md hover:scale-105 border border-blue-500/50"
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/login"
-                className="px-6 py-2.5 bg-white/70 hover:bg-white/90 backdrop-blur-md text-slate-800 border border-slate-300/50 rounded-full font-semibold text-sm transition-all hover:scale-105 shadow-sm"
-              >
-                Login
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center text-white drop-shadow-md">
-          <span className="text-xs uppercase tracking-widest mb-1.5 font-bold">Scroll to explore</span>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Features / About Section */}
-      <div className="py-24 px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-slate-800 mb-4">Empowering Communities</h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-            CivicSync brings neighbors together to solve local problems, coordinate relief, and build a stronger society.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
-              <Shield size={28} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">Verified Reports</h3>
-            <p className="text-slate-600">All civic issues are community-verified to ensure authenticity and rapid response from authorities.</p>
-          </div>
-
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
-              <Users size={28} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">Community Action</h3>
-            <p className="text-slate-600">Crowdsource help for disaster relief, animal rescue, or local neighborhood cleanups instantly.</p>
-          </div>
-
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mb-6">
-              <Heart size={28} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">Blood & Charity</h3>
-            <p className="text-slate-600">Connect directly with donors for urgent blood requests or coordinate charity drives transparently.</p>
-          </div>
-
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-6">
-              <Zap size={28} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">Real-time Map</h3>
-            <p className="text-slate-600">View live interactive maps showing hazards, donation campaigns, and verified reports near you.</p>
+  const { t } = useLocale();
+  const features = [
+    [ShieldCheck, 'verifiedRequests', 'verifiedText'],
+    [MapPinned, 'communityReports', 'reportsText'],
+    [HeartPulse, 'healthSignals', 'healthText'],
+  ];
+  return <main className="bg-slate-50">
+    <section className="relative flex min-h-[90vh] items-center overflow-hidden bg-slate-900 pt-28">
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(' + heroArt + ')' }} />
+      <video autoPlay loop muted playsInline poster={heroArt} className="absolute inset-0 h-full w-full object-cover opacity-40"><source src={video} type="video/mp4" /></video>
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/65 to-transparent" />
+      <div className="relative mx-auto w-full min-w-0 max-w-7xl px-6 pb-20 text-white">
+        <div className="max-w-2xl">
+          <span className="mb-5 inline-block rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur">CivicSync · Dhaka</span>
+          <h1 className="break-words text-4xl font-black leading-tight sm:text-7xl">{t('landingTitle')}</h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-100">{t('landingLead')}</p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link to="/register" className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 font-bold text-white shadow-lg hover:bg-blue-700">{t('getStarted')} <ArrowRight size={18}/></Link>
+            <Link to="/home" className="rounded-full border border-white/50 bg-white/15 px-6 py-3 font-bold text-white backdrop-blur hover:bg-white/25">{t('explore')}</Link>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </section>
+    <section className="mx-auto max-w-7xl px-6 py-20">
+      <h2 className="mb-10 text-3xl font-extrabold text-slate-900">{t('howItWorks')}</h2>
+      <div className="grid gap-5 md:grid-cols-3">{features.map(([Icon, title, body]) => <div key={title} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"><div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Icon size={28}/></div><h3 className="text-xl font-bold">{t(title)}</h3><p className="mt-3 leading-relaxed text-slate-600">{t(body)}</p></div>)}</div>
+      <p className="mt-8 rounded-2xl bg-slate-900 p-6 text-slate-100">{t('helpText')}</p>
+    </section>
+  </main>;
 }

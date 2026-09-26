@@ -1,111 +1,59 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { civicReportApi } from "../api/client";
-import Navbar from "../components/Navbar";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import { civicReportApi, uploadApi } from '../api/client';
+import { useLocale } from '../i18n';
+import { Page, Card, Button, Field, Notice } from '../components/UI';
+
+const markerIcon = L.divIcon({ className: '', html: '<span style="display:block;width:22px;height:22px;border-radius:50%;background:#f59e0b;border:4px solid white;box-shadow:0 2px 8px #33415588"></span>', iconSize: [22,22], iconAnchor: [11,11] });
+function PickLocation({ point, onPick }) {
+  const map = useMap();
+  useMapEvents({ click: event => onPick(event.latlng.lat, event.latlng.lng) });
+  const latitude = point?.[0], longitude = point?.[1];
+  useEffect(() => { if (latitude != null && longitude != null && !map.getBounds().contains([latitude, longitude])) map.panTo([latitude, longitude]); }, [latitude, longitude, map]);
+  return point && <Marker position={point} icon={markerIcon} draggable eventHandlers={{ dragend: event => { const next = event.target.getLatLng(); onPick(next.lat, next.lng); } }}/>;
+}
 
 export default function ReportClogging() {
-  const [form, setForm] = useState({ latitude: "", longitude: "", description: "" });
-  const [locating, setLocating] = useState(false);
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { t } = useLocale();
   const navigate = useNavigate();
-
-  const useMyLocation = () => {
-    setLocating(true);
+  const [form, setForm] = useState({ latitude: '', longitude: '', description: '' });
+  const [photo, setPhoto] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const point = form.latitude !== '' && form.longitude !== '' ? [Number(form.latitude), Number(form.longitude)] : null;
+  const pick = (lat, lng) => setForm(current => ({ ...current, latitude: String(lat.toFixed(6)), longitude: String(lng.toFixed(6)) }));
+  const locate = () => {
+    if (!navigator.geolocation) { setError(t('error')); return; }
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
-        setLocating(false);
-      },
-      () => {
-        setError("Couldn't get your location. Enter coordinates manually or try again.");
-        setLocating(false);
-      }
+      p => setForm(f => ({ ...f, latitude: String(p.coords.latitude), longitude: String(p.coords.longitude) })),
+      () => setError(t('error'))
     );
   };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSubmitting(true);
+  const submit = async (event) => {
+    event.preventDefault(); setBusy(true); setError('');
     try {
-      await civicReportApi.create({
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
-        description: form.description,
-      });
-      navigate("/civic-reports");
-    } catch (err) {
-      setError(err.response?.data?.message || "Couldn't submit this report.");
-    } finally {
-      setSubmitting(false);
-    }
+      const lat = Number(form.latitude), lng = Number(form.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw new Error(t('error'));
+      const photoUrl = photo ? (await uploadApi.image(photo)).data.url : null;
+      await civicReportApi.create({ latitude: lat, longitude: lng, description: form.description.trim(), photoUrl });
+      navigate('/civic-reports');
+    } catch (err) { setError(err.response?.data?.message || err.message || t('error')); }
+    finally { setBusy(false); }
   };
-
-  return (
-    <div className="min-h-screen bg-transparent flex flex-col font-['Inter']">
-      <Navbar />
-      <div className="flex-1 flex items-center justify-center p-4">
-        <form className="bg-white rounded-xl shadow-md p-8 w-full max-w-md" onSubmit={handleSubmit}>
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">Report water-clogging</h2>
-          <p className="text-slate-500 mb-6 text-sm">Help neighbors avoid or prepare for a flooded area.</p>
-
-          {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
-
-          <button 
-            type="button" 
-            className="w-full bg-slate-100 text-slate-700 font-semibold py-2.5 rounded-lg hover:bg-slate-200 transition-colors mb-6 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-70" 
-            onClick={useMyLocation} 
-            disabled={locating}
-          >
-            {locating ? "Locating..." : "📍 Use my current location"}
-          </button>
-
-          <div className="mb-4">
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Latitude</label>
-            <input
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              type="number" step="any" required
-              value={form.latitude}
-              onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Longitude</label>
-            <input
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              type="number" step="any" required
-              value={form.longitude}
-              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">What's happening here?</label>
-            <textarea
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
-              required rows={3}
-              placeholder="e.g. Knee-deep water blocking the main road"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <button 
-              type="submit" 
-              className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer" 
-              disabled={submitting}
-            >
-              {submitting ? "Submitting..." : "Submit report"}
-            </button>
-            <Link to="/home" className="w-full block text-center py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg font-semibold transition-all duration-200">
-              Return to Home
-            </Link>
-          </div>
-        </form>
+  return <Page title={t('reportWater')} subtitle={t('reportsText')}>
+    <Card className="mx-auto max-w-xl"><form onSubmit={submit} className="space-y-5">
+      {error && <Notice>{error}</Notice>}
+      <Button type="button" variant="secondary" onClick={locate}>{t('useLocation')}</Button>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t('latitude')} type="number" step="any" required value={form.latitude} onChange={e => setForm({ ...form, latitude: e.target.value })} />
+        <Field label={t('longitude')} type="number" step="any" required value={form.longitude} onChange={e => setForm({ ...form, longitude: e.target.value })} />
       </div>
-    </div>
-  );
+      <div className="h-64 overflow-hidden rounded-2xl border border-slate-200"><MapContainer center={[23.8103,90.4125]} zoom={12} className="h-full w-full"><TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/><PickLocation point={point} onPick={pick}/></MapContainer></div>
+      <Field label={t('description')} as="textarea" rows={5} required maxLength={1000} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+      <Field label={t('evidence') + ' (' + t('optional') + ')'} type="file" accept="image/*" capture="environment" onChange={e => setPhoto(e.target.files?.[0] || null)} />
+      <Button type="submit" disabled={busy}>{t('submit')}</Button>
+    </form></Card>
+  </Page>;
 }

@@ -1,210 +1,97 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Home, MapPin, Bell, ArrowLeft, ThumbsUp } from 'lucide-react';
-import MapView from '../components/MapView';
-import { civicReportApi, campaignApi } from '../api/client';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Circle, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { campaignApi, civicReportApi, healthApi } from '../api/client';
+import { useLocale } from '../i18n';
+import { Page, Card, Button, Spinner, Notice, Badge, Category, authUser } from '../components/UI';
+
+const center = [23.8103, 90.4125];
+const centers = [['mirpur', [23.8069,90.3687]], ['dhanmondi',[23.7461,90.3742]], ['uttara',[23.8759,90.3795]], ['gulshan',[23.7925,90.4078]], ['banani',[23.7937,90.4066]], ['motijheel',[23.7330,90.4172]], ['mohammadpur',[23.7674,90.3588]], ['badda',[23.7809,90.4250]], ['old dhaka',[23.7104,90.4074]], ['sylhet',[24.8949,91.8687]]];
+const approximate = location => centers.find(([name]) => location?.toLowerCase().includes(name))?.[1] || null;
+const pin = color => L.divIcon({ className: '', html: '<span style="display:block;width:22px;height:22px;border-radius:50%;background:' + color + ';border:4px solid white;box-shadow:0 2px 10px #33415588"></span>', iconSize: [22,22], iconAnchor: [11,11] });
+const civicPin = pin('#f59e0b');
+const confirmedPin = pin('#e11d48');
+const campaignPin = pin('#2563eb');
+
+function LocateControl({ trigger }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!trigger) return;
+    navigator.geolocation?.getCurrentPosition(position => map.flyTo([position.coords.latitude, position.coords.longitude], 14));
+  }, [trigger, map]);
+  return null;
+}
 
 export default function MapPage() {
-  const navigate = useNavigate();
+  const { t } = useLocale();
+  const [params] = useSearchParams();
+  const [layers, setLayers] = useState({ civic: true, campaign: params.get('layer') !== 'health', health: true });
   const [reports, setReports] = useState([]);
-  const [verifiedCampaigns, setVerifiedCampaigns] = useState([]);
-  const [selectedReportId, setSelectedReportId] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [query, setQuery] = useState('');
+  const [locateTrigger, setLocateTrigger] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
-
-  const fetchReports = () => {
-    civicReportApi.getActive().then((res) => setReports(res.data)).catch(() => {});
-  };
-
+  const [now, setNow] = useState(0);
+  const [error, setError] = useState('');
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      civicReportApi.getActive(),
-      campaignApi.getAll(), // no coordinates on these — shown as a list below the map, not as pins
-    ])
-      .then(([reportsRes, campaignsRes]) => {
-        setReports(reportsRes.data);
-        setVerifiedCampaigns(campaignsRes.data.filter((c) => c.status === 'VERIFIED'));
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleConfirm = async (id, e) => {
-    e.stopPropagation();
-    await civicReportApi.confirm(id);
-    fetchReports();
+    let active = true;
+    const refresh = async () => {
+      const results = await Promise.allSettled([civicReportApi.getActive(), campaignApi.getAll(), healthApi.getAlerts()]);
+      if (!active) return;
+      if (results[0].status === 'fulfilled') setReports(results[0].value.data);
+      if (results[1].status === 'fulfilled') setCampaigns(results[1].value.data);
+      if (results[2].status === 'fulfilled') setAlerts(results[2].value.data);
+      setNow(Date.now());
+      setError(results.some(result => result.status === 'rejected') ? t('error') : '');
+      setLoading(false);
+    };
+    refresh(); const timer = setInterval(refresh, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, [t]);
+  const matches = item => JSON.stringify([item.title, item.description, item.location, item.area]).toLowerCase().includes(query.toLowerCase());
+  const shownReports = reports.filter(matches);
+  const shownCampaigns = campaigns.filter(matches);
+  const shownAlerts = alerts.filter(alert => alert.level === 'WATCH' && matches(alert));
+  const toggle = key => setLayers(current => ({ ...current, [key]: !current[key] }));
+  const confirm = async id => {
+    if (!authUser()) { window.location.href = '/login'; return; }
+    try {
+      const { data } = await civicReportApi.confirm(id);
+      setReports(current => current.map(report => report.id === id ? data : report));
+      setSelected({ type: 'civic', data });
+    } catch (err) { setError(err.response?.data?.message || t('error')); }
   };
-
-  const confirmedCount = reports.filter((r) => r.status === 'CONFIRMED').length;
-  const unconfirmedCount = reports.filter((r) => r.status === 'UNCONFIRMED').length;
-
-  return (
-    <div className="h-screen flex flex-col bg-transparent text-slate-800 font-['Inter'] overflow-hidden">
-
-      {/* Top Navigation Bar */}
-      <nav className="flex items-center justify-between px-6 bg-white/90 backdrop-blur-md border-b border-pink-100 h-16 shrink-0 z-50">
-        <div className="flex items-center gap-8 h-full">
-          <div
-            onClick={() => navigate('/home')}
-            className="flex items-center gap-2 text-xl font-bold text-blue-600 cursor-pointer"
-          >
-            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">C</div>
-            Civic<span className="text-slate-800">Sync</span>
-            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 ml-1">
-              Live Map
-            </span>
-          </div>
-
-          <div className="flex h-full text-sm font-medium text-slate-500">
-            <button
-              onClick={() => navigate('/home')}
-              className="flex items-center gap-2 px-4 h-full hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              <Home size={18} /> Home
-            </button>
-            <button className="flex items-center gap-2 px-4 h-full border-b-2 border-blue-600 text-blue-600 bg-blue-50/50 font-semibold cursor-pointer">
-              <MapPin size={18} /> Map
-            </button>
-            <button
-              onClick={() => navigate('/home')}
-              className="flex items-center gap-2 px-4 h-full hover:text-slate-800 transition-colors cursor-pointer"
-            >
-              <Bell size={18} /> Alerts
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/home')}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer shadow-sm"
-          >
-            <ArrowLeft size={14} /> Back to Feed
-          </button>
-
-          {user ? (
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold border border-blue-200">
-                {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'U'}
-              </div>
-              <span className="text-xs font-medium text-slate-700 hidden md:inline">{user.fullName}</span>
-            </div>
-          ) : (
-            <button onClick={() => navigate('/login')} className="text-sm font-medium text-blue-600 cursor-pointer">
-              Login
-            </button>
-          )}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative">
-
-        {/* Left Sidebar */}
-        <aside className="w-96 bg-white border-r border-slate-200 flex flex-col shrink-0 hidden md:flex z-10 shadow-lg shadow-slate-200 overflow-y-auto">
-
-          {/* Stats — only reflect what the map actually plots (water-clogging) */}
-          <div className="p-4 border-b border-slate-100 grid grid-cols-2 gap-2 text-center bg-slate-50">
-            <div className="bg-white border border-sky-100 p-2 rounded-lg shadow-sm">
-              <div className="text-sky-600 text-base font-bold">{unconfirmedCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Unconfirmed</div>
-            </div>
-            <div className="bg-white border border-rose-100 p-2 rounded-lg shadow-sm">
-              <div className="text-rose-600 text-base font-bold">{confirmedCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Confirmed</div>
-            </div>
-          </div>
-
-          {/* Water-clogging reports list */}
-          <div className="p-3 space-y-2.5 bg-slate-50 border-b border-slate-200">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
-              Water-Clogging Reports ({reports.length})
-            </div>
-
-            {loading && <p className="text-xs text-slate-400 px-1">Loading...</p>}
-            {!loading && reports.length === 0 && (
-              <p className="text-xs text-slate-400 px-1">No active reports right now.</p>
-            )}
-
-            {reports.map((rep) => {
-              const isConfirmed = rep.status === 'CONFIRMED';
-              return (
-                <div
-                  key={rep.id}
-                  onClick={() => setSelectedReportId(rep.id)}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer bg-white ${
-                    selectedReportId === rep.id
-                      ? 'border-blue-400 ring-2 ring-blue-500/20 shadow-md'
-                      : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isConfirmed
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : 'bg-sky-50 text-sky-700 border border-sky-200'
-                      }`}
-                    >
-                      {isConfirmed ? 'Confirmed' : 'Unconfirmed'}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-medium">
-                      {rep.confirmationCount || 0} confirms
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-slate-600 line-clamp-2">{rep.description}</p>
-
-                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="flex items-center gap-1 truncate max-w-[170px] font-medium">
-                      <MapPin size={11} className="text-blue-500 shrink-0" />
-                      {rep.latitude.toFixed(4)}, {rep.longitude.toFixed(4)}
-                    </span>
-
-                    <button
-                      onClick={(e) => handleConfirm(rep.id, e)}
-                      className="flex items-center gap-1 text-[10px] font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 py-0.5 rounded transition-colors cursor-pointer border border-sky-200 shadow-sm"
-                    >
-                      <ThumbsUp size={10} /> +1 Confirm
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Verified campaigns — no coordinates yet, shown as a plain list, not map pins */}
-          <div className="p-3 space-y-2.5 bg-white">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1">
-              Verified Requests Nearby ({verifiedCampaigns.length})
-            </div>
-            <p className="text-[10px] text-slate-400 px-1 mb-1">
-              These aren't pinned on the map yet — campaigns don't store coordinates currently.
-            </p>
-            {verifiedCampaigns.map((c) => (
-              <div
-                key={c.id}
-                onClick={() => navigate(`/post/${c.id}`)}
-                className="p-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:shadow-sm transition-all"
-              >
-                <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{c.title}</h4>
-                {c.location && (
-                  <span className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
-                    <MapPin size={11} className="text-blue-500 shrink-0" /> {c.location}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </aside>
-
-        {/* Map View */}
-        <div className="flex-1 h-full relative bg-slate-100">
-          <MapView height="100%" isFullScreen={true} reports={reports} selectedReportId={selectedReportId} />
-        </div>
-      </div>
+  return <Page wide title={t('map')} subtitle={t('reportsText')} actions={<Link to="/report-clogging"><Button>{t('reportWater')}</Button></Link>}>
+    {error && <div className="mb-4"><Notice>{error}</Notice></div>}
+    <div className="mb-4 flex flex-wrap items-end gap-3">
+      <label className="text-sm font-medium">{t('search')}<input className="mt-1 block rounded-xl border border-slate-300 bg-white px-3 py-2" value={query} onChange={event => setQuery(event.target.value)} /></label>
+      {[[ 'civic','civicLayer','bg-amber-500' ],['campaign','campaignLayer','bg-blue-600'],['health','healthLayer','bg-rose-600']].map(([key,label,color]) => <label key={key} className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold"><input type="checkbox" checked={layers[key]} onChange={() => toggle(key)}/><span className={'h-2.5 w-2.5 rounded-full ' + color}/>{t(label)}</label>)}
+      <Button variant="secondary" onClick={() => setLocateTrigger(value => value + 1)}>{t('locateMe')}</Button>
     </div>
-  );
+    {loading ? <Spinner/> : <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="h-[65vh] min-h-96 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <MapContainer center={center} zoom={12} className="h-full w-full">
+          <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+          <LocateControl trigger={locateTrigger}/>
+          {layers.civic && shownReports.filter(report => Number.isFinite(Number(report.latitude)) && Number.isFinite(Number(report.longitude))).map(report => {
+            const stale = now - new Date(report.lastConfirmedAt || report.createdAt).getTime() > 12 * 60 * 60 * 1000;
+            return <Marker key={'civic-' + report.id} position={[report.latitude,report.longitude]} icon={report.status === 'CONFIRMED' ? confirmedPin : civicPin} opacity={stale ? 0.45 : 1} eventHandlers={{ click: () => setSelected({ type: 'civic', data: report }) }}/>;
+          })}
+          {layers.campaign && shownCampaigns.map(campaign => ({ campaign, position: campaign.latitude != null && campaign.longitude != null ? [campaign.latitude,campaign.longitude] : approximate(campaign.location) })).filter(item => item.position).map(({ campaign, position }) => <Marker key={'campaign-' + campaign.id} position={position} icon={campaignPin} eventHandlers={{ click: () => setSelected({ type: 'campaign', data: campaign }) }}/>)}
+          {layers.health && shownAlerts.filter(alert => alert.latitude != null && alert.longitude != null).map(alert => <Circle key={'health-' + alert.area} center={[alert.latitude,alert.longitude]} radius={Math.min(1800, 500 + alert.reportCount * 100)} pathOptions={{ color:'#e11d48',fillColor:'#fb7185',fillOpacity:0.22,weight:2 }} eventHandlers={{ click: () => setSelected({ type: 'alert', data: alert }) }}/>)}
+        </MapContainer>
+      </div>
+      <aside className="space-y-4">
+        {selected ? <Card><button className="float-right text-slate-500" onClick={() => setSelected(null)} aria-label={t('cancel')}>×</button>
+          {selected.type === 'campaign' ? <><p className="text-xs font-bold text-blue-700"><Category value={selected.data.category}/></p><h2 className="mt-2 text-xl font-bold">{selected.data.title}</h2><p className="mt-2 text-sm text-slate-600">{selected.data.location}</p><div className="mt-3"><Badge status={selected.data.status}/></div><Link className="mt-4 inline-block rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white" to={'/post/' + selected.data.id}>{t('viewDetails')}</Link></>
+            : selected.type === 'civic' ? <><h2 className="text-lg font-bold">{selected.data.description}</h2>{selected.data.photoUrl && <img className="mt-3 max-h-48 w-full rounded-xl object-cover" src={selected.data.photoUrl} alt=""/>}<div className="mt-3"><Badge status={selected.data.status}/></div><p className="mt-2 text-sm">{selected.data.confirmationCount} {t('reportCount')}</p><div className="mt-4 flex gap-2"><Button onClick={() => confirm(selected.data.id)}>{t('confirm')}</Button><Link className="rounded-xl border border-slate-300 px-4 py-2 text-sm" to={'/civic-reports/' + selected.data.id}>{t('viewDetails')}</Link></div></>
+              : <><p className="text-sm font-bold text-rose-700">{t('alerts')}</p><h2 className="mt-2 text-xl font-bold">{selected.data.area}</h2><p className="mt-2 text-sm">{selected.data.reportCount} {t('reportCount')} · {t('lastDays')}</p><p className="mt-2 text-xs text-slate-500">{t('approximateArea')}</p></>}
+        </Card> : <Card><h2 className="text-lg font-bold">{t('viewDetails')}</h2><p className="mt-3 text-sm text-slate-500">{t('noMapItems')}</p></Card>}
+        <Card><h2 className="font-bold">{t('civicLayer')} ({shownReports.length})</h2><h2 className="mt-3 font-bold">{t('campaignLayer')} ({shownCampaigns.length})</h2><h2 className="mt-3 font-bold">{t('healthLayer')} ({shownAlerts.length})</h2></Card>
+      </aside>
+    </div>}
+  </Page>;
 }

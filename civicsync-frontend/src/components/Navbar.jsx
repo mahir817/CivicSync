@@ -1,128 +1,59 @@
-import { Home, MapPin, Droplet, Bell, Search, User, LogOut, ChevronDown } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
-import logoImg from '../assets/logo.png';
+﻿import { useEffect, useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Bell, Menu, Plus, Search, UserRound, X } from 'lucide-react';
+import logo from '../assets/logo.png';
+import { profileApi } from '../api/client';
+import { useLocale } from '../i18n';
+import { authUser } from './UI';
+import { useNewPost } from './NewPost';
 
-export default function Navbar({ searchQuery, setSearchQuery, showSearch = false }) {
+export default function Navbar() {
+  const { t, locale, setLocale } = useLocale();
+  const newPost = useNewPost();
   const navigate = useNavigate();
-  const location = useLocation();
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const isActive = (path) => location.pathname === path;
-
+  const user = authUser();
+  const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [unread, setUnread] = useState(0);
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
-
-  return (
-    <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] bg-[#18181B] rounded-full p-2 pl-2 pr-2 border border-zinc-800 shadow-2xl backdrop-blur-md flex items-center justify-between gap-6 w-max">
-      
-      {/* 2. Left Element (Logo Badge) */}
-      <div 
-        onClick={() => navigate('/home')}
-        className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer flex-shrink-0 overflow-hidden"
-      >
-        <img src={logoImg} alt="CivicSync" className="w-6 h-6 object-contain" />
-      </div>
-
-      {/* 3. Middle Links */}
-      <div className="flex items-center gap-6 md:gap-8 px-2">
-        <button 
-          onClick={() => navigate('/home')}
-          className={`text-sm font-medium transition-colors ${isActive('/home') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
-        >
-          Home
-        </button>
-        <button 
-          onClick={() => navigate('/map')}
-          className={`text-sm font-medium transition-colors ${isActive('/map') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
-        >
-          Map
-        </button>
-        <button 
-          onClick={() => navigate('/report-symptom')}
-          className={`text-sm font-medium transition-colors ${isActive('/report-symptom') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
-        >
-          Alerts
-        </button>
-        <button 
-          onClick={() => navigate('/civic-reports')}
-          className={`text-sm font-medium transition-colors ${isActive('/civic-reports') ? 'text-white' : 'text-zinc-300 hover:text-white'}`}
-        >
-          Civic Reports
-        </button>
-      </div>
-
-      {/* Optional Search Bar integrated into the dark theme */}
-      {showSearch && (
-        <div className="relative hidden lg:block">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={e => setSearchQuery && setSearchQuery(e.target.value)}
-            className="bg-zinc-800/50 border border-zinc-700 rounded-full py-1.5 pl-8 pr-4 text-xs w-48 text-zinc-200 focus:outline-none focus:border-zinc-500 placeholder-zinc-500 transition-all"
-          />
+    if (!user?.id) return;
+    let active = true;
+    profileApi.notifications().then(({ data }) => { if (active) setUnread(data.filter(item => !item.read).length); }).catch(() => {});
+    return () => { active = false; };
+  }, [user?.id]);
+  const links = [['/home', 'home'], ['/map', 'map'], ['/civic-reports', 'reports'], ['/alerts', 'alerts']];
+  const roleLinks = [
+    ...(user?.role === 'VERIFIER' || user?.role === 'ADMIN' ? [['/review', 'review']] : []),
+    ...(user?.role === 'ADMIN' ? [['/admin', 'admin']] : []),
+  ];
+  const linkClass = ({ isActive }) => 'rounded-full px-3 py-2 text-sm font-medium transition ' + (isActive ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white');
+  const logout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); setOpen(false); setProfileOpen(false); navigate('/login'); };
+  const search = event => { event.preventDefault(); setOpen(false); navigate('/home?q=' + encodeURIComponent(query)); };
+  const compose = () => { setOpen(false); newPost(); };
+  return <header className="fixed left-0 top-0 z-[1000] w-full px-3 pt-3 sm:pt-5">
+    <nav aria-label={t('menu')} className="mx-auto max-w-7xl rounded-3xl border border-zinc-700 bg-zinc-950/95 px-3 py-2 text-white shadow-2xl backdrop-blur-md sm:rounded-full">
+      <div className="flex items-center justify-between gap-2">
+        <Link to={user ? '/home' : '/'} onClick={() => setOpen(false)} className="flex shrink-0 items-center gap-2 rounded-full pl-1 pr-2 font-bold" aria-label="CivicSync">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white"><img src={logo} alt="" className="h-6 w-6 object-contain"/></span><span className="hidden sm:inline">CivicSync</span>
+        </Link>
+        <div className="hidden items-center gap-1 xl:flex">{links.map(([to, key]) => <NavLink key={to} to={to} className={linkClass}>{t(key)}</NavLink>)}</div>
+        <form onSubmit={search} className="hidden min-w-0 flex-1 items-center rounded-full border border-zinc-700 bg-zinc-800 px-3 lg:flex xl:max-w-44"><Search size={16} className="shrink-0 text-zinc-400"/><input className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs text-white outline-none placeholder:text-zinc-400" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('search')} aria-label={t('search')}/></form>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button onClick={compose} className="flex items-center gap-1 rounded-full bg-blue-600 px-3 py-2 text-xs font-bold hover:bg-blue-500 sm:px-4 sm:text-sm"><Plus size={17}/><span className="hidden sm:inline">{t('newPost')}</span></button>
+          {user && <Link to="/inbox" className="relative rounded-full p-2 text-zinc-200 hover:bg-zinc-800" aria-label={t('inbox')}><Bell size={20}/>{unread > 0 && <span className="absolute right-0 top-0 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[10px] text-white">{unread}</span>}</Link>}
+          <label className="sr-only" htmlFor="locale-select">{t('language')}</label>
+          <select id="locale-select" value={locale} onChange={event => setLocale(event.target.value)} className="max-w-20 rounded-full bg-zinc-800 px-2 py-2 text-xs text-white" aria-label={t('language')}><option value="en">EN</option><option value="bn">বাংলা</option></select>
+          {user ? <div className="relative hidden sm:block"><button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-2 text-sm" aria-label={t('profile')} aria-expanded={profileOpen}><UserRound size={18}/><span className="hidden max-w-20 truncate lg:inline">{user.fullName?.split(' ')[0]}</span></button>
+            {profileOpen && <div className="absolute right-0 top-12 min-w-44 rounded-2xl border border-zinc-700 bg-zinc-950 p-2 shadow-xl"><Link onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-zinc-800" to="/profile">{t('profile')}</Link>{roleLinks.map(([to, key]) => <Link key={to} onClick={() => setProfileOpen(false)} className="block rounded-xl px-3 py-2 text-sm hover:bg-zinc-800" to={to}>{t(key)}</Link>)}<button onClick={logout} className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-zinc-800">{t('logout')}</button></div>}</div>
+            : <Link to="/login" className="hidden rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-950 sm:block">{t('login')}</Link>}
+          <button onClick={() => setOpen(!open)} className="rounded-full p-2 xl:hidden" aria-label={t('menu')} aria-expanded={open}>{open ? <X size={22}/> : <Menu size={22}/>}</button>
         </div>
-      )}
-
-      {/* 4. Right Element (CTA / User Badge) */}
-      <div className="flex items-center">
-        {user ? (
-          <div className="relative" ref={dropdownRef}>
-            <button 
-              onClick={() => setDropdownOpen(!dropdownOpen)} 
-              className="bg-white text-zinc-950 rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-100 transition-colors flex items-center gap-2"
-            >
-              {user.fullName ? user.fullName.split(' ')[0] : 'User'}
-              <ChevronDown size={14} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-3 w-48 bg-[#18181B] rounded-xl shadow-xl border border-zinc-800 overflow-hidden z-50">
-                <button 
-                  onClick={() => { setDropdownOpen(false); navigate('/profile'); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors text-left"
-                >
-                  <User size={16} /> Profile & Analytics
-                </button>
-                <div className="h-px bg-zinc-800 w-full"></div>
-                <button 
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-zinc-800 transition-colors text-left"
-                >
-                  <LogOut size={16} /> Logout
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <button 
-            onClick={() => navigate('/login')} 
-            className="bg-white text-zinc-950 rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-100 transition-colors"
-          >
-            Login
-          </button>
-        )}
       </div>
+      {open && <div className="mt-3 border-t border-zinc-700 pt-3 xl:hidden">
+        <form onSubmit={search} className="mb-3 flex rounded-full bg-zinc-800 px-3"><Search size={16} className="my-auto text-zinc-400"/><input className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('search')} aria-label={t('search')}/></form>
+        <div className="grid grid-cols-2 gap-2">{[...links, ...(user ? [['/inbox','inbox'], ['/profile','profile']] : []), ...roleLinks].map(([to, key]) => <NavLink key={to} to={to} onClick={() => setOpen(false)} className={linkClass}>{t(key)}</NavLink>)}{user ? <button onClick={logout} className="rounded-full bg-white px-3 py-2 text-left text-sm text-zinc-950 sm:hidden">{t('logout')}</button> : <Link to="/login" onClick={() => setOpen(false)} className="rounded-full bg-white px-3 py-2 text-sm text-zinc-950 sm:hidden">{t('login')}</Link>}</div>
+      </div>}
     </nav>
-  );
+  </header>;
 }

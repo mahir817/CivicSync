@@ -1,579 +1,161 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Heart, 
-  Share2, 
-  MessageSquare, 
-  CheckCircle2, 
-  AlertTriangle, 
-  ThumbsUp, 
-  Calendar,
-  Droplet,
-  CloudRain
-} from 'lucide-react';
-import DonateModal from '../components/DonateModal';
-import CommentSection from '../components/CommentSection';
-import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi, likeApi } from '../api/client';
-import { getStoredReports, confirmReport, INITIAL_REPORTS } from '../services/reportService';
-
-const CATEGORY_LABELS = {
-  BLOOD: '🩸 Blood Donation',
-  PET_CARE: '🐾 Pet Care',
-  CHARITY: '❤️ Charity',
-  DISASTER_RELIEF: '🌊 Disaster Relief',
-  WATER_LOGGING: '💧 Water Clogging',
-};
+﻿import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi, likeApi, disputeApi, uploadApi } from '../api/client';
+import { useLocale } from '../i18n';
+import { Page, Card, Button, Field, Notice, Badge, Category, Spinner, authUser, fmtDate } from '../components/UI';
 
 export default function PostDetail() {
   const { id } = useParams();
+  const civic = useLocation().pathname.startsWith('/civic-reports/');
+  const { t } = useLocale();
   const navigate = useNavigate();
-  const location = useLocation();
-
+  const user = authUser();
   const [post, setPost] = useState(null);
-  const [isCivic, setIsCivic] = useState(false);
-  const [notFound, setNotFound] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [donations, setDonations] = useState([]);
   const [attachments, setAttachments] = useState([]);
-  const [showDonateModal, setShowDonateModal] = useState(false);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [copied, setCopied] = useState(false);
-  const [confirmedCount, setConfirmedCount] = useState(null);
-  const [hasConfirmed, setHasConfirmed] = useState(false);
-
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
-
+  const [comments, setComments] = useState([]);
+  const [likes, setLikes] = useState({ count: 0, liked: false });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [editFiles, setEditFiles] = useState([]);
+  const [comment, setComment] = useState('');
+  const [flagReason, setFlagReason] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [proof, setProof] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const refresh = async () => {
+    try {
+      const response = civic ? await civicReportApi.getById(id) : await campaignApi.getById(id);
+      setPost(response.data); setEdit(response.data); setError('');
+      const commentsRequest = civic ? commentApi.getForCivicReport(id) : commentApi.getForCampaign(id);
+      const likesRequest = civic ? likeApi.getForCivicReport(id) : likeApi.getForCampaign(id);
+      commentsRequest.then(r => setComments(r.data)).catch(() => {});
+      likesRequest.then(r => setLikes(r.data)).catch(() => {});
+      if (!civic) {
+        donationApi.getForCampaign(id).then(r => setDonations(r.data)).catch(() => {});
+        attachmentApi.getForCampaign(id).then(r => setAttachments(r.data)).catch(() => {});
+      }
+    } catch { setError(t('noResults')); }
+    finally { setLoading(false); }
+  };
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setNotFound(false);
-
-    const loadPost = async () => {
-      // 1. If passed via navigation state, seed post immediately to prevent flash
-      if (location.state?.post && String(location.state.post.id) === String(id)) {
-        if (!cancelled) {
-          const statePost = location.state.post;
-          setPost(statePost);
-          setIsCivic(statePost.isCivic || (statePost.category || '').toUpperCase().includes('WATER'));
-          if (statePost.confirmations != null) {
-            setConfirmedCount(statePost.confirmations);
-          }
-        }
-      }
-
-      const isLocalReportId = String(id).startsWith('report-') || isNaN(Number(id));
-
-      // 2. If it's a local report ID format, search stored reports first
-      if (isLocalReportId) {
-        const storedReports = getStoredReports();
-        let found = storedReports.find((r) => String(r.id) === String(id));
-        if (!found) {
-          found = INITIAL_REPORTS.find((r) => String(r.id) === String(id));
-        }
-
-        if (found) {
-          if (!cancelled) {
-            setPost(found);
-            setIsCivic(found.isCivic || (found.category || '').toUpperCase().includes('WATER'));
-            setConfirmedCount(found.confirmations || 0);
-            setLoading(false);
-          }
-          return;
-        }
-      }
-
-      // 3. For numeric IDs, try Campaign API first
-      if (!isLocalReportId) {
-        try {
-          const res = await campaignApi.getById(id);
-          if (!cancelled) {
-            setPost(res.data);
-            setIsCivic((res.data.category || '').toUpperCase().includes('WATER'));
-            setLoading(false);
-
-            donationApi.getForCampaign(id)
-              .then((r) => !cancelled && setDonations(r.data))
-              .catch(() => {});
-            attachmentApi.getForCampaign(id)
-              .then((r) => !cancelled && setAttachments(r.data))
-              .catch(() => {});
-              
-            if (user) {
-              likeApi.getForCampaign(id)
-                .then((r) => {
-                  if (!cancelled) {
-                    setLikeCount(r.data.count);
-                    setLiked(r.data.liked);
-                  }
-                }).catch(() => {});
-            }
-          }
-          return;
-        } catch (err) {
-          // Not found as campaign, check Civic Reports
-        }
-      }
-
-      // 4. Try backend Civic Reports
+    let active = true;
+    const load = async () => {
       try {
-        const civicRes = await civicReportApi.getActive();
-        const foundCivic = civicRes.data.find((r) => String(r.id) === String(id));
-        if (foundCivic) {
-          if (!cancelled) {
-            setPost(foundCivic);
-            setIsCivic(true);
-            setConfirmedCount(foundCivic.confirmationCount || 0);
-            setLoading(false);
-            
-            if (user) {
-              likeApi.getForCivicReport(id).then(r => {
-                if (!cancelled) {
-                  setLikeCount(r.data.count);
-                  setLiked(r.data.liked);
-                }
-              }).catch(() => {});
-            }
-          }
-          return;
+        const response = civic ? await civicReportApi.getById(id) : await campaignApi.getById(id);
+        if (!active) return;
+        setPost(response.data); setEdit(response.data);
+        const commentsRequest = civic ? commentApi.getForCivicReport(id) : commentApi.getForCampaign(id);
+        const likesRequest = civic ? likeApi.getForCivicReport(id) : likeApi.getForCampaign(id);
+        commentsRequest.then(r => { if (active) setComments(r.data); }).catch(() => {});
+        likesRequest.then(r => { if (active) setLikes(r.data); }).catch(() => {});
+        if (!civic) {
+          donationApi.getForCampaign(id).then(r => { if (active) setDonations(r.data); }).catch(() => {});
+          attachmentApi.getForCampaign(id).then(r => { if (active) setAttachments(r.data); }).catch(() => {});
         }
-      } catch (err) {
-        // Backend civic report fetch failed
-      }
-
-      // 5. Fallback: check stored reports even if id was numeric
-      const storedReports = getStoredReports();
-      let found = storedReports.find((r) => String(r.id) === String(id));
-      if (!found) {
-        found = INITIAL_REPORTS.find((r) => String(r.id) === String(id));
-      }
-
-      if (found) {
-        if (!cancelled) {
-          setPost(found);
-          setIsCivic(found.isCivic || (found.category || '').toUpperCase().includes('WATER'));
-          setConfirmedCount(found.confirmations || 0);
-          setLoading(false);
-        }
-        return;
-      }
-
-      // 6. Not found anywhere
-      if (!cancelled) {
-        setNotFound(true);
-        setLoading(false);
-      }
+      } catch { if (active) setError(t('noResults')); }
+      finally { if (active) setLoading(false); }
     };
-
-    loadPost();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, location.state]);
-
-  if (notFound) {
-    return (
-      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6 text-center font-['Inter']">
-        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 text-2xl">
-          ⚠️
-        </div>
-        <h2 className="text-2xl font-bold mb-2 text-slate-800">Post not found</h2>
-        <p className="text-slate-500 max-w-sm mb-6 text-sm">
-          The request or report you are looking for might have been removed, resolved, or is no longer available.
-        </p>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => navigate('/home')} 
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm transition-colors shadow-sm cursor-pointer"
-          >
-            Go to Feed
-          </button>
-          <button 
-            onClick={() => navigate('/map')} 
-            className="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-sm transition-colors cursor-pointer"
-          >
-            Explore Live Map
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading && !post) {
-    return (
-      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center text-slate-500 font-['Inter']">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-medium">Loading post details...</p>
-      </div>
-    );
-  }
-
-  if (!post) return null;
-
-  // --- Field Normalization ---
-  const isWater = isCivic || (post.category || '').toUpperCase().includes('WATER');
-  const title = post.title || (isWater ? 'Water-Clogging Hazard Report' : 'CivicSync Request');
-  const description = post.description || '';
-  const categoryLabel = CATEGORY_LABELS[post.category] || (isWater ? '💧 Water Clogging' : post.category || 'General');
-  const requesterName = post.requesterName || post.reporterName || (isWater ? 'Citizen Reporter' : 'Anonymous');
-
-  let locationLabel = post.location || post.locationName || '';
-  if (!locationLabel) {
-    if (typeof post.latitude === 'number' && typeof post.longitude === 'number') {
-      locationLabel = `${post.latitude.toFixed(4)}, ${post.longitude.toFixed(4)}`;
-    } else if (Array.isArray(post.position) && post.position.length >= 2) {
-      locationLabel = `${post.position[0].toFixed(4)}, ${post.position[1].toFixed(4)}`;
-    }
-  }
-
-  const goalAmount = isWater ? null : (post.goalAmount != null ? Number(post.goalAmount) : null);
-  const raisedAmount = isWater ? null : (post.raisedAmount != null ? Number(post.raisedAmount) : 0);
-
-  const displayConfirmations = confirmedCount != null ? confirmedCount : (post.confirmations || post.confirmationCount || 0);
-  const isConfirmed = post.status === 'VERIFIED' || post.type === 'verified' || displayConfirmations >= 3;
-  const canDonate = !isWater && (post.status === 'VERIFIED' || post.type === 'verified');
-
-  const handleConfirmHazard = async () => {
-    if (hasConfirmed) return;
-    setHasConfirmed(true);
-    setConfirmedCount((prev) => (prev || 0) + 1);
-
-    if (String(post.id).startsWith('report-') || isNaN(Number(post.id))) {
-      confirmReport(post.id);
-    } else {
-      try {
-        await civicReportApi.confirm(post.id);
-      } catch (e) {
-        console.warn('Backend confirmation failed, counted locally', e);
-      }
-    }
+    load();
+    return () => { active = false; };
+  }, [id, civic, t]);
+  const run = async (action, success) => {
+    if (!user) { navigate('/login'); return; }
+    setBusy(true); setError(''); setNotice('');
+    try { await action(); setNotice(success || t('thanks')); await refresh(); }
+    catch (err) { setError(err.response?.data?.message || t('error')); }
+    finally { setBusy(false); }
   };
-
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
+  const pledgeOnly = post && (post.category === 'BLOOD' || !post.goalAmount);
+  const contribute = event => {
+    event.preventDefault();
+    setConfirming(true);
   };
-
-  const scrollToComments = () => {
-    const commentInput = document.querySelector('input[placeholder="Write a comment..."]');
-    if (commentInput) {
-      commentInput.focus();
-      commentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+  const confirmSupport = async () => {
+    setConfirming(false);
+    await run(() => donationApi.create(id, pledgeOnly ? { type: 'PLEDGE', message, contactPhone } : { type: 'MONETARY', amount: Number(amount), message }),
+      pledgeOnly ? t('pledged') : t('awaitingReceipt'));
+    setAmount(''); setMessage(''); setContactPhone('');
   };
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/home');
-    }
+  const resubmit = async event => {
+    event.preventDefault(); setBusy(true); setError('');
+    try {
+      const payload = { title: edit.title, description: edit.description, category: edit.category,
+        location: edit.location, latitude: edit.latitude, longitude: edit.longitude,
+        goalAmount: edit.category === 'BLOOD' ? null : edit.goalAmount,
+        patientName: edit.category === 'BLOOD' ? edit.patientName : null,
+        bloodType: edit.category === 'BLOOD' ? edit.bloodType : null,
+        unitsNeeded: edit.category === 'BLOOD' ? Number(edit.unitsNeeded) : null,
+        hospital: edit.category === 'BLOOD' ? edit.hospital : null, urgency: edit.urgency };
+      await campaignApi.resubmit(id, payload);
+      if (editFiles.length) await attachmentApi.upload(id, editFiles);
+      setEditOpen(false); setEditFiles([]); await refresh(); setNotice(t('resubmit'));
+    } catch (err) { setError(err.response?.data?.message || t('error')); }
+    finally { setBusy(false); }
   };
-
-  return (
-    <div className="min-h-screen bg-transparent text-slate-800 font-['Inter'] p-4 md:p-8">
-      <div className="max-w-3xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
-        
-        {/* Navigation back */}
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 mb-6 font-medium text-sm cursor-pointer transition-colors"
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
-
-        {/* Header Badges & Details */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full">
-              {categoryLabel}
-            </span>
-
-            {isWater ? (
-              <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                isConfirmed ? 'bg-orange-100 text-orange-800' : 'bg-sky-100 text-sky-800'
-              }`}>
-                {isConfirmed ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                {isConfirmed ? 'COMMUNITY CONFIRMED' : 'UNCONFIRMED HAZARD'}
-              </span>
-            ) : (
-              <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                post.status === 'VERIFIED' || post.type === 'verified' 
-                  ? 'bg-emerald-100 text-emerald-700' 
-                  : 'bg-amber-100 text-amber-700'
-              }`}>
-                {post.status === 'VERIFIED' || post.type === 'verified' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                {post.status === 'VERIFIED' || post.type === 'verified' ? 'VERIFIED' : 'PENDING REVIEW'}
-              </span>
-            )}
-          </div>
-
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <Calendar size={13} />
-            {post.createdAt ? new Date(post.createdAt).toLocaleDateString(undefined, { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            }) : 'Recent'}
-          </span>
+  const addComment = event => { event.preventDefault(); run(() => civic ? commentApi.addToCivicReport(id, comment) : commentApi.addToCampaign(id, comment)); setComment(''); };
+  const flag = event => { event.preventDefault(); run(() => disputeApi.create({ postType: civic ? 'CIVIC_REPORT' : 'CAMPAIGN', postId: Number(id), reason: flagReason })); setFlagReason(''); };
+  const submitOutcome = event => {
+    event.preventDefault();
+    run(async () => { const proofUrl = proof ? (await uploadApi.image(proof)).data.url : null; await campaignApi.submitOutcome(id, { summary: outcome, proofUrl }); });
+    setOutcome(''); setProof(null);
+  };
+  const share = async () => { try { await navigator.clipboard.writeText(window.location.href); setNotice(t('copied')); } catch { setError(t('error')); } };
+  return <Page title={loading ? t('loading') : civic ? t('reports') : post?.title} actions={<Button variant="secondary" onClick={() => navigate(-1)}>{t('back')}</Button>}>
+    {loading ? <Spinner /> : error && !post ? <Notice>{error}</Notice> : post && <div className="space-y-5">
+      {error && <Notice>{error}</Notice>}{notice && <Notice tone="success">{notice}</Notice>}
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">{civic
+          ? <Badge status={post.status}/>
+          : <div className="flex items-center gap-2"><Category value={post.category}/><Badge status={post.status}/></div>}
+          <span className="text-xs text-slate-500">{fmtDate(post.createdAt)}</span>
         </div>
-
-        {/* Title */}
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight mb-3">
-          {title}
-        </h1>
-
-        {/* Author info */}
-        <div className="text-sm text-slate-500 mb-6 flex items-center gap-1.5">
-          <span>{isWater ? 'Reported by' : 'Posted by'}</span>
-          <span className="font-semibold text-slate-800">{requesterName}</span>
+        {civic ? <h1 className="mt-5 text-2xl font-bold">{post.description}</h1> : <p className="mt-5 whitespace-pre-wrap leading-relaxed text-slate-700">{post.description}</p>}
+        {post.photoUrl && <img src={post.photoUrl} alt="" className="mt-5 max-h-96 w-full rounded-xl object-cover" />}
+        <div className="mt-5 grid gap-2 border-t border-slate-100 pt-4 text-sm text-slate-600">
+          <p>{civic ? post.reporterName : post.requesterName}</p>
+          {civic ? <p>{post.latitude}, {post.longitude} · {post.confirmationCount} {t('reportCount')}</p>
+            : <><p>{post.location}</p>{post.category === 'BLOOD' && <div className="flex flex-wrap gap-3 rounded-xl bg-rose-50 p-3 text-rose-900"><span>{t('patientName')}: <strong>{post.patientName || '—'}</strong></span><span>{t('bloodType')}: <strong>{post.bloodType || '—'}</strong></span><span>{t('unitsNeeded')}: <strong>{post.unitsNeeded || '—'}</strong></span><span>{t('hospital')}: <strong>{post.hospital || post.location}</strong></span></div>}{post.goalAmount && <div><p className="font-semibold text-emerald-700">{t('received')}: ৳{Number(post.raisedAmount || 0).toLocaleString()} / ৳{Number(post.goalAmount).toLocaleString()}</p><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: Math.min(100, 100 * Number(post.raisedAmount || 0) / Number(post.goalAmount)) + '%' }}/></div></div>}</>}
         </div>
-
-        {/* Location banner */}
-        {locationLabel && (
-          <div className="flex items-center gap-2 text-sm text-slate-700 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
-            <MapPin size={16} className="text-blue-500 shrink-0" />
-            <span className="font-medium">{locationLabel}</span>
-          </div>
-        )}
-
-        {/* Primary Image preview (for local posts or uploaded image) */}
-        {(post.image || post.photoUrl) && (
-          <div className="mb-6 rounded-xl overflow-hidden border border-slate-200 max-h-96">
-            <img
-              src={post.image || post.photoUrl}
-              alt={title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Attachments for backend campaigns */}
-        {!isWater && attachments.length > 0 && (
-          <div className="mb-6">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
-              Attachments & Proof
-            </h4>
-            <div className="flex flex-wrap gap-3">
-              {attachments.map((a) =>
-                a.fileType && a.fileType.startsWith('image/') ? (
-                  <img
-                    key={a.id}
-                    src={`http://localhost:8080${a.url}`}
-                    alt={a.fileName}
-                    className="w-28 h-28 object-cover rounded-lg border border-slate-200 shadow-xs"
-                  />
-                ) : (
-                  <a
-                    key={a.id}
-                    href={`http://localhost:8080${a.url}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                  >
-                    📄 {a.fileName}
-                  </a>
-                )
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Description */}
-        <div className="text-slate-700 whitespace-pre-wrap leading-relaxed mb-6 border-l-4 border-blue-500 pl-4 py-1 text-base bg-blue-50/20 rounded-r-lg">
-          {description}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => run(() => civic ? likeApi.toggleForCivicReport(id) : likeApi.toggleForCampaign(id))}>{likes.liked ? '♥' : '♡'} {likes.count}</Button>
+          <Button variant="secondary" onClick={share}>{t('share')}</Button>
+          {civic && user && post.status !== 'RESOLVED' && <Button disabled={busy || user.id === post.reporterId} onClick={() => run(() => civicReportApi.confirm(id))}>{t('confirm')}</Button>}
+          {civic && user?.id === post.reporterId && post.status !== 'RESOLVED' && <Button variant="secondary" disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await civicReportApi.resolve(id); navigate('/civic-reports'); } catch (err) { setError(err.response?.data?.message || t('error')); } finally { setBusy(false); } }}>{t('resolve')}</Button>}
         </div>
-
-        {/* Water hazard severity / confirmation section */}
-        {isWater && (
-          <div className="mb-8 bg-sky-50 border border-sky-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="text-sm font-bold text-sky-900 flex items-center gap-2">
-                <span>{displayConfirmations} Community Confirmation{displayConfirmations !== 1 ? 's' : ''}</span>
-              </div>
-              {post.severity && (
-                <p className="text-xs text-sky-800 mt-1">
-                  Severity level: <span className="font-semibold">{post.severity}</span>
-                </p>
-              )}
-              <p className="text-xs text-sky-600 mt-0.5">
-                {displayConfirmations >= 3
-                  ? 'Confirmed by community members in this neighborhood.'
-                  : 'Needs community verification to confirm active hazard.'}
-              </p>
-            </div>
-
-            <button
-              onClick={handleConfirmHazard}
-              disabled={hasConfirmed}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-xs ${
-                hasConfirmed 
-                  ? 'bg-emerald-600 text-white cursor-default' 
-                  : 'bg-sky-600 hover:bg-sky-700 text-white'
-              }`}
-            >
-              {hasConfirmed ? (
-                <>
-                  <CheckCircle2 size={14} /> Confirmed!
-                </>
-              ) : (
-                <>
-                  <ThumbsUp size={14} /> Confirm Hazard (+1)
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Fundraising Goal Progress Bar */}
-        {goalAmount != null && (
-          <div className="mb-8 bg-emerald-50/70 border border-emerald-100 p-5 rounded-xl">
-            <div className="flex justify-between items-end mb-2">
-              <div className="text-xs text-emerald-800 font-bold uppercase tracking-wider">
-                Fundraising Goal
-              </div>
-              <div className="text-emerald-700 font-bold text-base">
-                ৳{raisedAmount}{' '}
-                <span className="text-emerald-600/80 text-sm font-normal">
-                  raised of ৳{goalAmount}
-                </span>
-              </div>
-            </div>
-            <div className="w-full bg-emerald-200/60 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (raisedAmount / goalAmount) * 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Interactive Action Bar */}
-        <div className="flex items-center gap-3 border-t border-slate-100 pt-5">
-          <button 
-            onClick={async () => {
-              if (!user) {
-                alert("Please log in to like this post.");
-                return;
-              }
-              const isLocal = String(post.id).startsWith('report-') || isNaN(Number(post.id));
-              
-              const willBeLiked = !liked;
-              setLiked(willBeLiked);
-              setLikeCount(prev => willBeLiked ? prev + 1 : prev - 1);
-              
-              if (!isLocal) {
-                try {
-                  const apiCall = isWater 
-                    ? likeApi.toggleForCivicReport(post.id) 
-                    : likeApi.toggleForCampaign(post.id);
-                  const res = await apiCall;
-                  setLiked(res.data.liked);
-                  setLikeCount(res.data.count);
-                } catch (e) {
-                  setLiked(!willBeLiked);
-                  setLikeCount(prev => willBeLiked ? prev - 1 : prev + 1);
-                }
-              }
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-              liked 
-                ? 'bg-rose-50 text-rose-600 border border-rose-200 font-semibold' 
-                : 'text-slate-600 hover:bg-slate-100 border border-transparent'
-            }`}
-          >
-            <Heart size={18} fill={liked ? 'currentColor' : 'none'} /> 
-            {liked ? 'Liked' : 'Like'} {likeCount > 0 && `(${likeCount})`}
-          </button>
-
-          <button 
-            onClick={scrollToComments}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors font-medium text-sm cursor-pointer"
-          >
-            <MessageSquare size={18} /> Comment
-          </button>
-
-          <button 
-            onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors font-medium text-sm cursor-pointer"
-          >
-            <Share2 size={18} /> {copied ? 'Link Copied!' : 'Share'}
-          </button>
-
-          {canDonate && (
-            <button
-              onClick={() => setShowDonateModal(true)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white transition-colors font-semibold text-sm shadow-sm cursor-pointer ${
-                post.category === 'BLOOD'
-                  ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
-                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
-              }`}
-            >
-              <Heart size={18} /> {post.category === 'BLOOD' ? 'I can donate' : 'Donate'}
-            </button>
-          )}
-        </div>
-
-        {/* Supporters / Donors list */}
-        {!isWater && donations.length > 0 && (
-          <div className="mt-8 border-t border-slate-200 pt-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">
-              Supporters ({donations.length})
-            </h3>
-
-            <div className="space-y-3">
-              {donations.map((d) => (
-                <div key={d.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <strong className="text-slate-800">{d.donorName}</strong>
-
-                  {d.type === 'MONETARY' && (
-                    <span className="text-slate-600"> donated {d.amount} BDT</span>
-                  )}
-
-                  {d.type === 'PLEDGE' && (
-                    <span className="text-slate-600"> pledged to help</span>
-                  )}
-
-                  {d.message && (
-                    <p className="text-sm text-slate-500 mt-1 italic">"{d.message}"</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Comment Section */}
-        <CommentSection
-          postId={post.id}
-          postType={isWater ? 'civicReport' : 'campaign'}
-          commentApi={commentApi}
-        />
-      </div>
-
-      {showDonateModal && (
-        <DonateModal
-          campaign={post}
-          onClose={() => setShowDonateModal(false)}
-          onSuccess={(newDonation) => {
-            setDonations((prev) => [newDonation, ...prev]);
-
-            if (newDonation.type === 'MONETARY' && newDonation.amount) {
-              setPost((prev) => ({
-                ...prev,
-                raisedAmount: (Number(prev.raisedAmount) || 0) + Number(newDonation.amount),
-              }));
-            }
-          }}
-        />
-      )}
-    </div>
-  );
+      </Card>
+      {!civic && <Card><h2 className="text-xl font-bold">{t('trustTrail')}</h2><div className="mt-5 space-y-0">{[
+        [t('submitted'), fmtDate(post.createdAt), true],
+        [t('reviewed'), post.verifiedByName ? post.verifiedByName + ' · ' + fmtDate(post.verifiedAt) : t('pending'), !!post.verifiedByName],
+        [t('live'), post.status === 'VERIFIED' || post.status === 'COMPLETED' ? t('verified') : t('pending'), post.status === 'VERIFIED' || post.status === 'COMPLETED'],
+        ...(post.goalAmount ? [[t('goalReached'), Number(post.raisedAmount || 0) >= Number(post.goalAmount) ? t('completed') : t('pending'), Number(post.raisedAmount || 0) >= Number(post.goalAmount)]] : []),
+        [t('proofImpact'), post.outcomeApproved ? fmtDate(post.completedAt) : t('awaitingProof'), post.outcomeApproved],
+      ].map(([label, detail, done], index) => <div key={label} className="flex gap-3"><div className="flex flex-col items-center"><span className={'flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold ' + (done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white text-slate-500')}>{done ? '✓' : index + 1}</span>{index < (post.goalAmount ? 4 : 3) && <span className="h-10 w-0.5 bg-slate-200"/>}</div><div className="pb-5"><p className="font-bold">{label}</p><p className="text-sm text-slate-500">{detail}</p></div></div>)}</div>
+        {post.verificationNote && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm"><strong>{t('reviewReason')}:</strong> {post.verificationNote}</div>}
+        {post.outcomeApproved && <div className="mt-4 rounded-xl bg-emerald-50 p-4"><h3 className="font-bold">{t('evidence')}</h3><p>{post.outcomeSummary}</p>{post.outcomeProofUrl && <a className="font-bold text-blue-600" href={post.outcomeProofUrl} target="_blank" rel="noreferrer">{t('evidence')}</a>}</div>}
+        {attachments.length > 0 && <div className="mt-4 space-y-1">{attachments.map(a => <a key={a.id} href={a.url || '/api/files/' + a.storedFileName} target="_blank" rel="noreferrer" className="block text-sm font-medium text-blue-600">{a.fileName}</a>)}</div>}
+      </Card>}
+      {!civic && user?.id === post.requesterId && (post.status === 'INFO_REQUESTED' || post.status === 'PENDING') && <Card><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{t('updateRequest')}</h2><Button variant="secondary" onClick={() => setEditOpen(!editOpen)}>{t('updateRequest')}</Button></div>{editOpen && edit && <form onSubmit={resubmit} className="mt-4 grid gap-3 sm:grid-cols-2"><Field label={t('title')} required value={edit.title || ''} onChange={event => setEdit({ ...edit, title: event.target.value })}/><Field label={t('location')} value={edit.location || ''} onChange={event => setEdit({ ...edit, location: event.target.value })}/>{edit.category === 'BLOOD' && <><Field label={t('patientName')} required value={edit.patientName || ''} onChange={event => setEdit({ ...edit, patientName: event.target.value })}/><Field label={t('bloodType')} as="select" value={edit.bloodType || 'O+'} onChange={event => setEdit({ ...edit, bloodType: event.target.value })}>{['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(type => <option key={type}>{type}</option>)}</Field><Field label={t('unitsNeeded')} type="number" min="1" required value={edit.unitsNeeded || 1} onChange={event => setEdit({ ...edit, unitsNeeded: event.target.value })}/><Field label={t('hospital')} required value={edit.hospital || ''} onChange={event => setEdit({ ...edit, hospital: event.target.value })}/></>}<Field label={t('description')} as="textarea" rows={4} required className="sm:col-span-2" value={edit.description || ''} onChange={event => setEdit({ ...edit, description: event.target.value })}/><Field label={t('evidence')} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={event => setEditFiles(Array.from(event.target.files || []))}/><div className="flex items-end"><Button disabled={busy} type="submit">{t('resubmit')}</Button></div></form>}</Card>}
+      {!civic && post.status === 'VERIFIED' && <Card><div id="contribute"><h2 className="text-xl font-bold">{t(pledgeOnly ? 'pledge' : 'donate')}</h2><form onSubmit={contribute} className="mt-4 space-y-4">
+        {!pledgeOnly && <Field label={t('amount')} type="number" min="1" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} />}
+        {pledgeOnly && <Field label={t('contactPhone')} type="tel" required value={contactPhone} onChange={e => setContactPhone(e.target.value)}/>}
+        <Field label={t('note') + ' (' + t('optional') + ')'} as="textarea" rows={2} value={message} onChange={e => setMessage(e.target.value)} />
+        <Button type="submit" disabled={busy}>{t(pledgeOnly ? 'pledge' : 'donate')}</Button></form></div>
+        {donations.length > 0 && <div className="mt-6 border-t border-slate-100 pt-4"><h3 className="font-bold">{t('supporters')}</h3>{donations.map(d => <p key={d.id} className="mt-2 text-sm text-slate-600">{d.donorName} · {d.type === 'PLEDGE' ? t('pledge') : '৳' + Number(d.amount).toLocaleString()}</p>)}</div>}
+      </Card>}
+      {!civic && user?.id === post.requesterId && post.status === 'VERIFIED' && <Card><h2 className="font-bold">{t('submitOutcome')}</h2><form onSubmit={submitOutcome} className="mt-4 space-y-3"><Field label={t('description')} as="textarea" rows={3} required value={outcome} onChange={e => setOutcome(e.target.value)}/><Field label={t('evidence')} type="file" accept="image/*" onChange={e => setProof(e.target.files?.[0] || null)}/><Button disabled={busy} type="submit">{t('submitOutcome')}</Button></form></Card>}
+      <Card><h2 className="text-xl font-bold">{t('comments')}</h2><div className="mt-4 space-y-3">{comments.map(c => <div key={c.id} className="border-b border-slate-100 pb-3"><strong>{c.authorName}</strong><p className="text-sm text-slate-600">{c.content}</p></div>)}</div><form onSubmit={addComment} className="mt-4 flex gap-2"><input className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2" placeholder={t('writeComment')} required value={comment} onChange={e => setComment(e.target.value)} /><Button type="submit" disabled={busy}>{t('postComment')}</Button></form></Card>
+      {user && <Card><h2 className="font-bold">{t('flag')}</h2><form onSubmit={flag} className="mt-3 flex flex-wrap gap-2"><input className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2" placeholder={t('reason')} required value={flagReason} onChange={e => setFlagReason(e.target.value)}/><Button variant="secondary" type="submit" disabled={busy}>{t('submit')}</Button></form></Card>}
+      {civic && <Link to="/map" className="font-bold text-blue-600">{t('map')}</Link>}
+      {!civic && post.status === 'VERIFIED' && <div className="fixed bottom-3 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur"><div className="flex items-center justify-between gap-3"><p className="text-sm font-bold">{post.title}</p><Button onClick={() => document.getElementById('contribute')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{t(pledgeOnly ? 'pledge' : 'donate')}</Button></div></div>}
+      {confirming && <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/60 p-4"><Card className="w-full max-w-md"><h2 className="text-xl font-bold">{t(pledgeOnly ? 'pledge' : 'donate')}</h2><p className="mt-3 text-sm text-slate-600">{pledgeOnly ? t('pledge') : '৳' + Number(amount).toLocaleString() + ' · ' + t('awaitingReceipt')}</p><div className="mt-5 flex justify-end gap-2"><Button variant="secondary" onClick={() => setConfirming(false)}>{t('cancel')}</Button><Button onClick={confirmSupport}>{t('confirm')}</Button></div></Card></div>}
+    </div>}
+  </Page>;
 }
