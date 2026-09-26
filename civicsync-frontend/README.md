@@ -21,3 +21,5 @@ npm run build
 ```
 
 The interface supports English and Bengali through the shared navbar. Account settings store the language, area, interests, and reminder preference. All campaign, map, report, alert, profile, review, inbox, and admin data comes from the backend.
+
+See [Selenium browser checks](../selenium-tests/README.md) for end-to-end workflow tests.

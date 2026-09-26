@@ -32,3 +32,9 @@ run-backend.bat
 .worktrees/
 backend/private-documents/
 **/private-documents/
+**/uploads/
+selenium-tests/artifacts/
+**/__pycache__/
+.pytest_cache/
+selenium-tests/.venv/
+se-metadata.json

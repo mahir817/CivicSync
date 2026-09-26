@@ -47,6 +47,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/dev/e2e-target").permitAll()
                 .requestMatchers("/api/files/**").permitAll()
 
                 // Civic + health features are public to browse/submit anonymously where noted —

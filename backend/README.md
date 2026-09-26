@@ -1,6 +1,6 @@
 # CivicSync backend
 
-Spring Boot 3 API with MySQL, Flyway migrations, JWT authentication, and an H2 test profile.
+Spring Boot 3 API with MySQL, Flyway migrations, and JWT authentication.
 
 ## Local run
 
@@ -47,4 +47,4 @@ Registration accepts multipart `registration` JSON and `identityDocument` (PDF, 
 
 ## Verification
 
-Run `.\gradlew.bat test` (Windows) or `./gradlew test`. The tests use an H2 in-memory database and cover registration roles, public visibility, review limits, receipt confirmation, civic confirmation, outcome review, and disputes. To verify MySQL migration behavior, start the app against a copy of an existing database with `CIVICSYNC_DDL_AUTO=validate`.
+Run `.\gradlew.bat build` (Windows) or `./gradlew build` to compile the API. Run the [Selenium browser suite](../selenium-tests/README.md) against a disposable MySQL database to check the main user journeys. To verify migration behavior, start the app against a copy of an existing database with `CIVICSYNC_DDL_AUTO=validate`.

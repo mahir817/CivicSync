@@ -8,7 +8,7 @@ CivicSync connects verified requests for help with local civic and health report
 2. From `backend/`, run `./gradlew bootRun` (PowerShell: `.\\gradlew.bat bootRun`). The API listens on port 8081 by default. Flyway creates or updates the schema. Development mode seeds sample accounts and campaigns only when the database is empty.
 3. From `civicsync-frontend/`, run `npm install` and `npm run dev`. Vite proxies `/api` to port 8081.
 
-See [backend/README.md](backend/README.md) for database, environment, migrations, and test setup, and [civicsync-frontend/README.md](civicsync-frontend/README.md) for client commands.
+See [backend/README.md](backend/README.md) for database, environment, and migrations, [civicsync-frontend/README.md](civicsync-frontend/README.md) for client commands, and [selenium-tests/README.md](selenium-tests/README.md) for browser tests.
 
 ## Main workflows
 
@@ -21,4 +21,4 @@ See [backend/README.md](backend/README.md) for database, environment, migrations
 
 ## Checks
 
-Run `npm run lint` and `npm run build` in the frontend, and `./gradlew test` in the backend. Backend tests use H2; MySQL smoke checks are recommended for migrations and the main flows.
+Run `npm run lint` and `npm run build` in the frontend, `./gradlew build` in the backend, and the Selenium suite against a disposable MySQL database. The browser suite checks the main workflows.
