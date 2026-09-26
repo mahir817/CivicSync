@@ -27,4 +27,9 @@ public class MyDonationsController {
     public ResponseEntity<?> getPendingReceipts(Authentication auth) {
         return ResponseEntity.ok(donationService.getPendingForRequester(auth.getName()));
     }
+
+    @GetMapping("/pledges")
+    public ResponseEntity<?> getPledges(Authentication auth) {
+        return ResponseEntity.ok(donationService.getPledgesForRequester(auth.getName()));
+    }
 }

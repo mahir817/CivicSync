@@ -48,22 +48,24 @@ class CoreWorkflowTest {
         User requester = user("requester@example.com", User.Role.USER);
         User donor = user("donor@example.com", User.Role.USER);
         User verifier = user("verifier@example.com", User.Role.VERIFIER);
-        verifier.getVerifierCategories().add(Campaign.Category.PET_CARE);
+        verifier.getVerifierCategories().add(Campaign.Category.BLOOD);
         users.save(verifier);
 
         long campaignId = id(mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Need blood\",\"description\":\"Hospital request\",\"category\":\"BLOOD\",\"location\":\"Dhaka\",\"goalAmount\":1000}"))
+                .content("{\"title\":\"Vet care\",\"description\":\"Treatment request\",\"category\":\"PET_CARE\",\"location\":\"Dhaka\",\"goalAmount\":1000}"))
                 .andExpect(status().isOk()).andReturn().getResponse());
-        mvc.perform(get("/api/campaigns")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/campaigns")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + campaignId + ")]").isEmpty());
         mvc.perform(get("/api/campaigns/{id}", campaignId)).andExpect(status().isNotFound());
         mvc.perform(put("/api/campaigns/{id}/verify", campaignId).param("approve", "true")
                 .header("Authorization", token(verifier))).andExpect(status().isForbidden());
-        verifier.getVerifierCategories().add(Campaign.Category.BLOOD);
+        verifier.getVerifierCategories().add(Campaign.Category.PET_CARE);
         users.save(verifier);
         mvc.perform(put("/api/campaigns/{id}/verify", campaignId).param("approve", "true")
                 .header("Authorization", token(verifier))).andExpect(status().isOk());
-        mvc.perform(get("/api/campaigns")).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/campaigns"))
+                .andExpect(jsonPath("$[?(@.id == " + campaignId + ")]").isNotEmpty());
 
         long donationId = id(mvc.perform(post("/api/campaigns/{id}/donations", campaignId)
                 .header("Authorization", token(donor)).contentType(MediaType.APPLICATION_JSON)
@@ -134,5 +136,57 @@ class CoreWorkflowTest {
                 .header("Authorization", token(admin))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.action").value("HIDE"));
         mvc.perform(get("/api/campaigns/{id}", campaignId)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void bloodReviewRequestsInformationAndKeepsPledgeContactPrivate() throws Exception {
+        User requester = user("blood-requester@example.com", User.Role.USER);
+        User donor = user("blood-donor@example.com", User.Role.USER);
+        User verifier = user("blood-partner@example.com", User.Role.VERIFIER);
+        verifier.getVerifierCategories().add(Campaign.Category.BLOOD);
+        users.save(verifier);
+        String request = "{\"title\":\"O+ blood needed\",\"description\":\"Urgent surgery\",\"category\":\"BLOOD\",\"location\":\"Dhanmondi\",\"patientName\":\"Amina Rahman\",\"bloodType\":\"O+\",\"unitsNeeded\":2,\"hospital\":\"Delta Hospital\",\"urgency\":\"URGENT\"}";
+        mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Incomplete\",\"description\":\"Missing blood fields\",\"category\":\"BLOOD\"}"))
+                .andExpect(status().isBadRequest());
+        long campaignId = id(mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
+                .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isOk()).andReturn().getResponse());
+        mvc.perform(put("/api/campaigns/{id}/review", campaignId)
+                .header("Authorization", token(verifier)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"REJECT\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/campaigns/{id}/review", campaignId)
+                .header("Authorization", token(verifier)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"REQUEST_INFO\",\"reason\":\"Please add a hospital document\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("INFO_REQUESTED"));
+        mvc.perform(get("/api/campaigns/{id}", campaignId)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/campaigns/{id}", campaignId).header("Authorization", token(requester)))
+                .andExpect(jsonPath("$.verificationNote").value("Please add a hospital document"));
+        mvc.perform(patch("/api/campaigns/{id}", campaignId).header("Authorization", token(requester))
+                .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDING"));
+        mvc.perform(put("/api/campaigns/{id}/review", campaignId)
+                .header("Authorization", token(verifier)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"APPROVE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("VERIFIED"));
+        mvc.perform(post("/api/campaigns/{id}/donations", campaignId)
+                .header("Authorization", token(donor)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\":\"MONETARY\",\"amount\":100}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/campaigns/{id}/donations", campaignId)
+                .header("Authorization", token(donor)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\":\"PLEDGE\",\"contactPhone\":\"01700000000\",\"message\":\"Available today\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PLEDGED"));
+        mvc.perform(get("/api/campaigns/{id}/donations", campaignId))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].contactPhone").isEmpty())
+                .andExpect(jsonPath("$[0].message").isEmpty());
+        mvc.perform(get("/api/donations/pledges").header("Authorization", token(requester)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].contactPhone").value("01700000000"));
+        mvc.perform(get("/api/donations/pledges").header("Authorization", token(donor)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/me/notifications").header("Authorization", token(requester)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.messageKey == 'NEW_PLEDGE')]").isNotEmpty());
     }
 }

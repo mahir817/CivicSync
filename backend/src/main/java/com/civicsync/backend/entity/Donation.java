@@ -35,6 +35,7 @@ public class Donation {
 
     @Column(length = 500)
     private String message;
+    private String contactPhone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

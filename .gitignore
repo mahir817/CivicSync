@@ -29,3 +29,4 @@ frontend/dist/
 Thumbs.db
 
 run-backend.bat
+.worktrees/

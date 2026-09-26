@@ -21,19 +21,22 @@ public class NotificationController {
     private final UserRepository users;
     private final DonationRepository donations;
     private final CampaignRepository campaigns;
+    private final com.civicsync.backend.service.NotificationService sender;
 
     public NotificationController(NotificationRepository notifications, UserRepository users,
-            DonationRepository donations, CampaignRepository campaigns) {
+            DonationRepository donations, CampaignRepository campaigns,
+            com.civicsync.backend.service.NotificationService sender) {
         this.notifications = notifications;
         this.users = users;
         this.donations = donations;
         this.campaigns = campaigns;
+        this.sender = sender;
     }
 
-    public record NotificationResponse(Long id, String messageKey, Long campaignId,
+    public record NotificationResponse(Long id, String messageKey, Long campaignId, String message,
             boolean read, Instant createdAt) {
         static NotificationResponse from(Notification n) {
-            return new NotificationResponse(n.getId(), n.getMessageKey(), n.getCampaignId(),
+            return new NotificationResponse(n.getId(), n.getMessageKey(), n.getCampaignId(), n.getMessage(),
                     n.isReadState(), n.getCreatedAt());
         }
     }
@@ -58,23 +61,13 @@ public class NotificationController {
     private void generate(User user) {
         var history = donations.findByDonorIdOrderByCreatedAtDesc(user.getId());
         if (!history.isEmpty() && history.get(0).getCreatedAt().isBefore(Instant.now().minus(30, ChronoUnit.DAYS))) {
-            create(user, "activity-" + YearMonth.now(), "REMINDER_ACTIVITY", null);
+            sender.send(user, "activity-" + YearMonth.now(), "REMINDER_ACTIVITY", null, null);
         }
         campaigns.findByStatus(Campaign.VerificationStatus.VERIFIED).stream()
                 .filter(c -> c.getCreatedAt().isAfter(Instant.now().minus(14, ChronoUnit.DAYS)))
                 .filter(c -> user.getInterests().contains(c.getCategory())
                         || user.getArea() != null && c.getLocation() != null
                         && c.getLocation().toLowerCase().contains(user.getArea().toLowerCase()))
-                .limit(3).forEach(c -> create(user, "campaign-" + c.getId(), "MATCHING_CAMPAIGN", c.getId()));
-    }
-
-    private void create(User user, String key, String messageKey, Long campaignId) {
-        if (notifications.existsByUserIdAndDedupeKey(user.getId(), key)) return;
-        Notification n = new Notification();
-        n.setUser(user);
-        n.setDedupeKey(key);
-        n.setMessageKey(messageKey);
-        n.setCampaignId(campaignId);
-        notifications.save(n);
+                .limit(3).forEach(c -> sender.send(user, "campaign-" + c.getId(), "MATCHING_CAMPAIGN", c.getId(), null));
     }
 }

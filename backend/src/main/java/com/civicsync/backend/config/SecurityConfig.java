@@ -51,6 +51,7 @@ public class SecurityConfig {
 
                 // Civic + health features are public to browse/submit anonymously where noted —
                 // specific rules must come before the general campaign rules below.
+                .requestMatchers(HttpMethod.GET, "/api/civic-reports/mine").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/civic-reports/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/symptom-reports").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/health-alerts").permitAll()
@@ -61,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/pending").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/outcomes/pending").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/verify").hasAnyRole("VERIFIER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/review").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/outcome/approve").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/**").permitAll()
 

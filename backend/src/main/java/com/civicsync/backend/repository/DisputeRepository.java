@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface DisputeRepository extends JpaRepository<Dispute, Long> {
     List<Dispute> findAllByOrderByCreatedAtDesc();
+    long countByStatus(Dispute.Status status);
 }

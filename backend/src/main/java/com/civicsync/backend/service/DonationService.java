@@ -19,19 +19,21 @@ public class DonationService {
     private final DonationRepository donationRepository;
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
+    private final NotificationService notifications;
 
     public DonationService(DonationRepository donationRepository,
                             CampaignRepository campaignRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository, NotificationService notifications) {
         this.donationRepository = donationRepository;
         this.campaignRepository = campaignRepository;
         this.userRepository = userRepository;
+        this.notifications = notifications;
     }
 
     public List<DonationResponse> getForCampaign(Long campaignId) {
         return donationRepository.findByCampaignIdOrderByCreatedAtDesc(campaignId)
                 .stream().filter(d -> d.getStatus() != Donation.Status.PENDING_RECEIPT)
-                .map(DonationResponse::from).toList();
+                .map(DonationResponse::publicFrom).toList();
     }
 
     @Transactional
@@ -41,6 +43,9 @@ public class DonationService {
 
         if (campaign.getStatus() != Campaign.VerificationStatus.VERIFIED) {
             throw new IllegalStateException("Only verified campaigns can receive donations");
+        }
+        if (campaign.getCategory() == Campaign.Category.BLOOD && req.type() != Donation.Type.PLEDGE) {
+            throw new IllegalArgumentException("Blood requests accept pledges only");
         }
 
         User donor = userRepository.findByEmail(donorEmail)
@@ -57,10 +62,18 @@ public class DonationService {
         donation.setType(req.type());
         donation.setAmount(req.type() == Donation.Type.MONETARY ? req.amount() : null);
         donation.setMessage(req.message());
+        if (req.contactPhone() != null && req.contactPhone().length() > 255) {
+            throw new IllegalArgumentException("Contact phone is too long");
+        }
+        donation.setContactPhone(req.type() == Donation.Type.PLEDGE ? req.contactPhone() : null);
         donation.setStatus(req.type() == Donation.Type.MONETARY
                 ? Donation.Status.PENDING_RECEIPT : Donation.Status.PLEDGED);
 
         Donation saved = donationRepository.save(donation);
+        if (saved.getType() == Donation.Type.PLEDGE) {
+            notifications.send(campaign.getRequester(), "pledge-" + saved.getId(),
+                    "NEW_PLEDGE", campaignId, donor.getFullName());
+        }
         return DonationResponse.from(saved);
     }
 
@@ -98,6 +111,13 @@ public class DonationService {
         return donationRepository.findByCampaignRequesterIdAndStatusOrderByCreatedAtDesc(
                 requester.getId(), Donation.Status.PENDING_RECEIPT)
                 .stream().map(DonationResponse::from).toList();
+    }
+
+    public List<DonationResponse> getPledgesForRequester(String email) {
+        User requester = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return donationRepository.findByCampaignRequesterIdAndTypeOrderByCreatedAtDesc(
+                requester.getId(), Donation.Type.PLEDGE).stream().map(DonationResponse::from).toList();
     }
 
     public List<DonationResponse> getMine(String donorEmail) {

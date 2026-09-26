@@ -55,11 +55,21 @@ public class CivicReportService {
         return CivicReportResponse.from(civicReportRepository.save(report));
     }
 
-    public CivicReportResponse getById(Long id) {
+    public List<CivicReportResponse> getMine(String email) {
+        User reporter = userRepository.findByEmail(email).orElseThrow();
+        return civicReportRepository.findByReporterIdOrderByCreatedAtDesc(reporter.getId())
+                .stream().map(CivicReportResponse::from).toList();
+    }
+
+    public CivicReportResponse getById(Long id, String viewerEmail) {
         CivicReport report = civicReportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
         if (report.getStatus() == CivicReport.Status.RESOLVED) {
-            throw new IllegalArgumentException("Report not found");
+            User viewer = viewerEmail == null ? null : userRepository.findByEmail(viewerEmail).orElse(null);
+            if (viewer == null || (!report.getReporter().getId().equals(viewer.getId())
+                    && viewer.getRole() != User.Role.ADMIN)) {
+                throw new IllegalArgumentException("Report not found");
+            }
         }
         return CivicReportResponse.from(report);
     }
@@ -86,6 +96,7 @@ public class CivicReportService {
         confirmationRepository.save(confirmation);
 
         report.setConfirmationCount(report.getConfirmationCount() + 1);
+        report.setLastConfirmedAt(java.time.Instant.now());
         if (report.getConfirmationCount() >= CONFIRMATIONS_TO_LOCK_IN
                 && report.getStatus() == CivicReport.Status.UNCONFIRMED) {
             report.setStatus(CivicReport.Status.CONFIRMED);

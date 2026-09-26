@@ -4,11 +4,14 @@ import com.civicsync.backend.dto.CampaignDtos.*;
 import com.civicsync.backend.entity.Campaign;
 import com.civicsync.backend.entity.User;
 import com.civicsync.backend.repository.CampaignRepository;
+import com.civicsync.backend.repository.DonationRepository;
 import com.civicsync.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class CampaignService {
@@ -17,10 +20,15 @@ public class CampaignService {
 
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
+    private final DonationRepository donationRepository;
+    private final NotificationService notifications;
 
-    public CampaignService(CampaignRepository campaignRepository, UserRepository userRepository) {
+    public CampaignService(CampaignRepository campaignRepository, UserRepository userRepository,
+            DonationRepository donationRepository, NotificationService notifications) {
         this.campaignRepository = campaignRepository;
         this.userRepository = userRepository;
+        this.donationRepository = donationRepository;
+        this.notifications = notifications;
     }
 
     public List<CampaignResponse> getAll() {
@@ -61,6 +69,36 @@ public class CampaignService {
     }
 
     public CampaignResponse create(CreateCampaignRequest req, String requesterEmail) {
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Campaign campaign = new Campaign();
+        applyRequest(campaign, req);
+        campaign.setRequester(requester);
+        campaign.setStatus(Campaign.VerificationStatus.PENDING);
+
+        return CampaignResponse.from(campaignRepository.save(campaign));
+    }
+
+    @Transactional
+    public CampaignResponse resubmit(Long id, CreateCampaignRequest req, String requesterEmail) {
+        Campaign campaign = campaignRepository.findLockedById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Campaign not found"));
+        if (!campaign.getRequester().getEmail().equalsIgnoreCase(requesterEmail)) {
+            throw new SecurityException("Only the requester can update this campaign");
+        }
+        if (campaign.getStatus() != Campaign.VerificationStatus.INFO_REQUESTED
+                && campaign.getStatus() != Campaign.VerificationStatus.PENDING) {
+            throw new IllegalStateException("This campaign cannot be edited now");
+        }
+        applyRequest(campaign, req);
+        campaign.setStatus(Campaign.VerificationStatus.PENDING);
+        campaign.setVerificationNote(null);
+        campaign.setInfoRequestedAt(null);
+        return CampaignResponse.from(campaignRepository.save(campaign));
+    }
+
+    private void applyRequest(Campaign campaign, CreateCampaignRequest req) {
         if (req.goalAmount() != null && (!Double.isFinite(req.goalAmount()) || req.goalAmount() <= 0)) {
             throw new IllegalArgumentException("Goal amount must be positive");
         }
@@ -70,25 +108,37 @@ public class CampaignService {
                 || Math.abs(req.longitude()) > 180)) {
             throw new IllegalArgumentException("Invalid map coordinates");
         }
-        User requester = userRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        Campaign campaign = new Campaign();
-        campaign.setTitle(req.title());
-        campaign.setDescription(req.description());
+        if (req.category() == Campaign.Category.BLOOD) {
+            if (req.patientName() == null || req.patientName().isBlank()
+                    || req.hospital() == null || req.hospital().isBlank()
+                    || req.unitsNeeded() == null || req.unitsNeeded() < 1
+                    || req.bloodType() == null || !Set.of("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-").contains(req.bloodType())) {
+                throw new IllegalArgumentException("Blood requests need a patient, blood type, units, and hospital");
+            }
+        }
+        campaign.setTitle(req.title().trim());
+        campaign.setDescription(req.description().trim());
         campaign.setCategory(req.category());
         campaign.setLocation(req.location());
         campaign.setLatitude(req.latitude());
         campaign.setLongitude(req.longitude());
-        campaign.setGoalAmount(req.goalAmount());
-        campaign.setRequester(requester);
-        campaign.setStatus(Campaign.VerificationStatus.PENDING);
-
-        return CampaignResponse.from(campaignRepository.save(campaign));
+        campaign.setGoalAmount(req.category() == Campaign.Category.BLOOD ? null : req.goalAmount());
+        campaign.setPatientName(req.category() == Campaign.Category.BLOOD ? req.patientName().trim() : null);
+        campaign.setBloodType(req.category() == Campaign.Category.BLOOD ? req.bloodType() : null);
+        campaign.setUnitsNeeded(req.category() == Campaign.Category.BLOOD ? req.unitsNeeded() : null);
+        campaign.setHospital(req.category() == Campaign.Category.BLOOD ? req.hospital().trim() : null);
+        campaign.setUrgency(req.urgency());
     }
 
+    @Transactional
     public CampaignResponse verify(Long campaignId, String verifierEmail, boolean approve) {
-        Campaign campaign = campaignRepository.findById(campaignId)
+        return review(campaignId, new ReviewRequest(approve ? ReviewAction.APPROVE : ReviewAction.REJECT,
+                approve ? null : "Declined by verifier"), verifierEmail);
+    }
+
+    @Transactional
+    public CampaignResponse review(Long campaignId, ReviewRequest req, String verifierEmail) {
+        Campaign campaign = campaignRepository.findLockedById(campaignId)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found"));
         User verifier = userRepository.findByEmail(verifierEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Verifier not found"));
@@ -103,11 +153,27 @@ public class CampaignService {
         if (campaign.getRequester().getId().equals(verifier.getId())) {
             throw new SecurityException("You cannot review your own campaign");
         }
-
-        campaign.setStatus(approve ? Campaign.VerificationStatus.VERIFIED : Campaign.VerificationStatus.REJECTED);
+        if (req.action() != ReviewAction.APPROVE && (req.reason() == null || req.reason().isBlank())) {
+            throw new IllegalArgumentException("A reason is required to reject or request information");
+        }
+        if (req.reason() != null && req.reason().length() > 1000) {
+            throw new IllegalArgumentException("Review reason is too long");
+        }
+        campaign.setStatus(switch (req.action()) {
+            case APPROVE -> Campaign.VerificationStatus.VERIFIED;
+            case REJECT -> Campaign.VerificationStatus.REJECTED;
+            case REQUEST_INFO -> Campaign.VerificationStatus.INFO_REQUESTED;
+        });
+        campaign.setVerificationNote(req.action() == ReviewAction.APPROVE ? null : req.reason().trim());
+        campaign.setInfoRequestedAt(req.action() == ReviewAction.REQUEST_INFO ? Instant.now() : null);
         campaign.setVerifiedBy(verifier);
         campaign.setVerifiedAt(Instant.now());
-
+        notifications.send(campaign.getRequester(), "review-" + campaignId + "-" + campaign.getStatus() + "-" + System.nanoTime(),
+                switch (req.action()) {
+                    case APPROVE -> "CAMPAIGN_APPROVED";
+                    case REJECT -> "CAMPAIGN_REJECTED";
+                    case REQUEST_INFO -> "INFO_REQUESTED";
+                }, campaignId, campaign.getVerificationNote());
         return CampaignResponse.from(campaignRepository.save(campaign));
     }
 
@@ -138,6 +204,7 @@ public class CampaignService {
         return CampaignResponse.from(campaignRepository.save(campaign));
     }
 
+    @Transactional
     public CampaignResponse approveOutcome(Long id, String verifierEmail) {
         Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found"));
@@ -157,6 +224,10 @@ public class CampaignService {
         campaign.setOutcomeApproved(true);
         campaign.setStatus(Campaign.VerificationStatus.COMPLETED);
         campaign.setCompletedAt(Instant.now());
+        donationRepository.findByCampaignIdOrderByCreatedAtDesc(id).stream()
+                .map(d -> d.getDonor()).distinct()
+                .forEach(donor -> notifications.send(donor, "outcome-" + id,
+                        "PROOF_OF_IMPACT", id, null));
         return CampaignResponse.from(campaignRepository.save(campaign));
     }
 

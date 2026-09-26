@@ -25,7 +25,8 @@ public class CivicReportDtos {
             Integer confirmationCount,
             Long reporterId,
             String reporterName,
-            Instant createdAt
+            Instant createdAt,
+            Instant lastConfirmedAt
     ) {
         public static CivicReportResponse from(CivicReport r) {
             return new CivicReportResponse(
@@ -38,7 +39,8 @@ public class CivicReportDtos {
                     r.getConfirmationCount(),
                     r.getReporter().getId(),
                     r.getReporter().getFullName(),
-                    r.getCreatedAt()
+                    r.getCreatedAt(),
+                    r.getLastConfirmedAt()
             );
         }
     }

@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface CivicReportRepository extends JpaRepository<CivicReport, Long> {
     List<CivicReport> findByStatusNotOrderByCreatedAtDesc(CivicReport.Status excludedStatus);
+    long countByStatusNot(CivicReport.Status excludedStatus);
+    List<CivicReport> findByReporterIdOrderByCreatedAtDesc(Long reporterId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from CivicReport r where r.id = :id")
     Optional<CivicReport> findLockedById(@Param("id") Long id);

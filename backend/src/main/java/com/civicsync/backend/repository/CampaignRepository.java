@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     List<Campaign> findByCategory(Campaign.Category category);
     List<Campaign> findByStatus(Campaign.VerificationStatus status);
+    long countByStatus(Campaign.VerificationStatus status);
     List<Campaign> findByStatusInOrderByCreatedAtDesc(List<Campaign.VerificationStatus> statuses);
     List<Campaign> findAllByOrderByCreatedAtDesc();
     List<Campaign> findByRequesterIdOrderByCreatedAtDesc(Long requesterId);

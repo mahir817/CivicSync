@@ -40,6 +40,16 @@ public class Campaign {
 
     private Double raisedAmount = 0.0;
 
+    private String patientName;
+    private String bloodType;
+    private Integer unitsNeeded;
+    private String hospital;
+    @Enumerated(EnumType.STRING)
+    private Urgency urgency;
+    @Column(length = 1000)
+    private String verificationNote;
+    private Instant infoRequestedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requester_id", nullable = false)
     private User requester;
@@ -64,6 +74,8 @@ public class Campaign {
     }
 
     public enum VerificationStatus {
-        PENDING, VERIFIED, REJECTED, COMPLETED
+        PENDING, INFO_REQUESTED, VERIFIED, REJECTED, COMPLETED
     }
+
+    public enum Urgency { ROUTINE, SOON, URGENT, CRITICAL }
 }

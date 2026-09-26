@@ -40,6 +40,8 @@ public class CivicReport {
     @Column(nullable = false)
     private Integer confirmationCount = 0;
 
+    private Instant lastConfirmedAt;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

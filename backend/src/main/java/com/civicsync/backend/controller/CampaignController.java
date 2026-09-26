@@ -85,6 +85,18 @@ public CampaignController(CampaignService campaignService, AttachmentService att
         }
     }
 
+    @PatchMapping("/{id}")
+    public ResponseEntity<?> resubmit(@PathVariable Long id,
+            @Valid @RequestBody CreateCampaignRequest req, Authentication auth) {
+        return ResponseEntity.ok(campaignService.resubmit(id, req, auth.getName()));
+    }
+
+    @PutMapping("/{id}/review")
+    public ResponseEntity<?> review(@PathVariable Long id,
+            @Valid @RequestBody CampaignDtos.ReviewRequest req, Authentication auth) {
+        return ResponseEntity.ok(campaignService.review(id, req, auth.getName()));
+    }
+
     // Verifier/Admin only - approves or rejects a pending campaign
     @PutMapping("/{id}/verify")
     public ResponseEntity<?> verify(@PathVariable Long id,
@@ -99,7 +111,7 @@ public CampaignController(CampaignService campaignService, AttachmentService att
 
     @PostMapping(value = "/with-images", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
         public ResponseEntity<?> createWithImages(
-        @RequestPart("campaign") CreateCampaignRequest req,
+        @Valid @RequestPart("campaign") CreateCampaignRequest req,
         @RequestPart(value = "files", required = false) org.springframework.web.multipart.MultipartFile[] files,
         Authentication auth) {
              try {

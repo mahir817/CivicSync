@@ -15,7 +15,12 @@ public class CampaignDtos {
             String location,
             Double latitude,
             Double longitude,
-            Double goalAmount
+            Double goalAmount,
+            String patientName,
+            String bloodType,
+            Integer unitsNeeded,
+            String hospital,
+            Campaign.Urgency urgency
     ) {}
 
     public record CampaignResponse(
@@ -29,6 +34,13 @@ public class CampaignDtos {
             Double longitude,
             Double goalAmount,
             Double raisedAmount,
+            String patientName,
+            String bloodType,
+            Integer unitsNeeded,
+            String hospital,
+            Campaign.Urgency urgency,
+            String verificationNote,
+            Instant infoRequestedAt,
             Long requesterId,
             String requesterName,
             String verifiedByName,
@@ -51,6 +63,13 @@ public class CampaignDtos {
                     c.getLongitude(),
                     c.getGoalAmount(),
                     c.getRaisedAmount(),
+                    c.getPatientName(),
+                    c.getBloodType(),
+                    c.getUnitsNeeded(),
+                    c.getHospital(),
+                    c.getUrgency(),
+                    c.getVerificationNote(),
+                    c.getInfoRequestedAt(),
                     c.getRequester() != null ? c.getRequester().getId() : null,
                     c.getRequester() != null ? c.getRequester().getFullName() : null,
                     c.getVerifiedBy() != null ? c.getVerifiedBy().getFullName() : null,
@@ -70,4 +89,6 @@ public class CampaignDtos {
     ) {}
 
     public record OutcomeRequest(@NotBlank String summary, String proofUrl) {}
+    public enum ReviewAction { APPROVE, REJECT, REQUEST_INFO }
+    public record ReviewRequest(@NotNull ReviewAction action, String reason) {}
 }

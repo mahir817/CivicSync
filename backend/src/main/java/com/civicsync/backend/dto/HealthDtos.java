@@ -13,6 +13,8 @@ public class HealthDtos {
             String area,
             long reportCount,
             String level, // "WATCH" or "NORMAL" — rule-based, not ML
-            int windowDays
+            int windowDays,
+            Double latitude,
+            Double longitude
     ) {}
 }

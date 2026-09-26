@@ -48,7 +48,7 @@ public class CommentController {
 
     @GetMapping("/api/civic-reports/{id}/comments")
     public ResponseEntity<?> getCivicReportComments(@PathVariable Long id) {
-        civicReportService.getById(id);
+        civicReportService.getById(id, null);
         return ResponseEntity.ok(commentService.getFor(Comment.PostType.CIVIC_REPORT, id));
     }
 
@@ -56,7 +56,7 @@ public class CommentController {
     public ResponseEntity<?> addCivicReportComment(@PathVariable Long id,
                                                     @Valid @RequestBody CreateCommentRequest req,
                                                     Authentication auth) {
-        civicReportService.getById(id);
+        civicReportService.getById(id, null);
         try {
             return ResponseEntity.ok(commentService.create(Comment.PostType.CIVIC_REPORT, id, req, auth.getName()));
         } catch (IllegalArgumentException e) {

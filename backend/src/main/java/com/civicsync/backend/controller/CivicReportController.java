@@ -23,9 +23,14 @@ public class CivicReportController {
         return ResponseEntity.ok(civicReportService.getActive());
     }
 
+    @GetMapping("/mine")
+    public ResponseEntity<?> getMine(Authentication auth) {
+        return ResponseEntity.ok(civicReportService.getMine(auth.getName()));
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(civicReportService.getById(id));
+    public ResponseEntity<?> getById(@PathVariable Long id, Authentication auth) {
+        return ResponseEntity.ok(civicReportService.getById(id, auth == null ? null : auth.getName()));
     }
 
     // Requires auth - any logged-in user can report

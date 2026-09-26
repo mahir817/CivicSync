@@ -19,6 +19,8 @@ public class Notification {
     private String dedupeKey;
     @Column(nullable = false)
     private String messageKey;
+    @Column(length = 1000)
+    private String message;
     private Long campaignId;
     private boolean readState = false;
     private Instant createdAt = Instant.now();

@@ -45,14 +45,14 @@ public class LikeController {
 
     @GetMapping("/api/civic-reports/{id}/likes")
     public ResponseEntity<?> getCivicReportLikes(@PathVariable Long id, Authentication auth) {
-        civicReportService.getById(id);
+        civicReportService.getById(id, null);
         String email = auth != null ? auth.getName() : null;
         return ResponseEntity.ok(likeService.getLikes(PostLike.PostType.CIVIC_REPORT, id, email));
     }
 
     @PostMapping("/api/civic-reports/{id}/likes")
     public ResponseEntity<?> toggleCivicReportLike(@PathVariable Long id, Authentication auth) {
-        civicReportService.getById(id);
+        civicReportService.getById(id, null);
         try {
             return ResponseEntity.ok(likeService.toggleLike(PostLike.PostType.CIVIC_REPORT, id, auth.getName()));
         } catch (IllegalArgumentException e) {
