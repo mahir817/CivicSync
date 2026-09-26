@@ -30,3 +30,5 @@ Thumbs.db
 
 run-backend.bat
 .worktrees/
+backend/private-documents/
+**/private-documents/

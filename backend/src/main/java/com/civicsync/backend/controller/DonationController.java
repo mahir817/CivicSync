@@ -43,4 +43,10 @@ public class DonationController {
     public ResponseEntity<?> confirm(@PathVariable Long campaignId, @PathVariable Long donationId, Authentication auth) {
         return ResponseEntity.ok(donationService.confirm(campaignId, donationId, auth.getName()));
     }
+
+    @PutMapping("/{donationId}/confirm-blood")
+    public ResponseEntity<?> confirmBlood(@PathVariable Long campaignId, @PathVariable Long donationId,
+                                           Authentication auth) {
+        return ResponseEntity.ok(donationService.confirmBlood(campaignId, donationId, auth.getName()));
+    }
 }

@@ -7,6 +7,7 @@ import com.civicsync.backend.repository.CampaignRepository;
 import com.civicsync.backend.repository.DonationRepository;
 import com.civicsync.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -22,13 +23,16 @@ public class CampaignService {
     private final UserRepository userRepository;
     private final DonationRepository donationRepository;
     private final NotificationService notifications;
+    private final ApplicationEventPublisher events;
 
     public CampaignService(CampaignRepository campaignRepository, UserRepository userRepository,
-            DonationRepository donationRepository, NotificationService notifications) {
+            DonationRepository donationRepository, NotificationService notifications,
+            ApplicationEventPublisher events) {
         this.campaignRepository = campaignRepository;
         this.userRepository = userRepository;
         this.donationRepository = donationRepository;
         this.notifications = notifications;
+        this.events = events;
     }
 
     public List<CampaignResponse> getAll() {
@@ -51,9 +55,7 @@ public class CampaignService {
             && campaign.getStatus() != Campaign.VerificationStatus.COMPLETED) {
         User viewer = viewerEmail == null ? null : userRepository.findByEmail(viewerEmail).orElse(null);
         boolean owner = viewer != null && campaign.getRequester().getId().equals(viewer.getId());
-        boolean reviewer = viewer != null && (viewer.getRole() == User.Role.ADMIN
-                || (viewer.getRole() == User.Role.VERIFIER
-                && viewer.getVerifierCategories().contains(campaign.getCategory())));
+        boolean reviewer = viewer != null && canReview(viewer, campaign);
         if (!owner && !reviewer) throw new IllegalArgumentException("Campaign not found");
     }
     return CampaignResponse.from(campaign);
@@ -63,8 +65,7 @@ public class CampaignService {
         User verifier = userRepository.findByEmail(verifierEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Verifier not found"));
         return campaignRepository.findByStatus(Campaign.VerificationStatus.PENDING)
-                .stream().filter(c -> verifier.getRole() == User.Role.ADMIN
-                        || verifier.getVerifierCategories().contains(c.getCategory()))
+                .stream().filter(c -> canReview(verifier, c))
                 .map(CampaignResponse::from).toList();
     }
 
@@ -75,9 +76,12 @@ public class CampaignService {
         Campaign campaign = new Campaign();
         applyRequest(campaign, req);
         campaign.setRequester(requester);
+        assignVerifier(campaign, req.verifierCode());
         campaign.setStatus(Campaign.VerificationStatus.PENDING);
-
-        return CampaignResponse.from(campaignRepository.save(campaign));
+        Campaign saved = campaignRepository.save(campaign);
+        notifications.send(saved.getRequestedVerifier(), "assigned-" + saved.getId(),
+                "REVIEW_ASSIGNED", saved.getId(), saved.getTitle());
+        return CampaignResponse.from(saved);
     }
 
     @Transactional
@@ -92,10 +96,33 @@ public class CampaignService {
             throw new IllegalStateException("This campaign cannot be edited now");
         }
         applyRequest(campaign, req);
+        assignVerifier(campaign, req.verifierCode());
         campaign.setStatus(Campaign.VerificationStatus.PENDING);
         campaign.setVerificationNote(null);
         campaign.setInfoRequestedAt(null);
-        return CampaignResponse.from(campaignRepository.save(campaign));
+        Campaign saved = campaignRepository.save(campaign);
+        return CampaignResponse.from(saved);
+    }
+
+    private void assignVerifier(Campaign campaign, String code) {
+        if (code == null || code.isBlank()) throw new IllegalArgumentException("A verifier code is required");
+        User verifier = userRepository.findByVerifierCodeIgnoreCase(code.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Verifier code not found"));
+        if (verifier.getRole() != User.Role.VERIFIER
+                || !verifier.getVerifierCategories().contains(campaign.getCategory())) {
+            throw new IllegalArgumentException("Verifier is not qualified for this category");
+        }
+        if (campaign.getRequester() != null && verifier.getId().equals(campaign.getRequester().getId())) {
+            throw new IllegalArgumentException("You cannot assign yourself as verifier");
+        }
+        campaign.setRequestedVerifier(verifier);
+    }
+
+    private boolean canReview(User verifier, Campaign campaign) {
+        return verifier.getRole() == User.Role.ADMIN || (verifier.getRole() == User.Role.VERIFIER
+                && verifier.getVerifierCategories().contains(campaign.getCategory())
+                && (campaign.getRequestedVerifier() == null
+                    || campaign.getRequestedVerifier().getId().equals(verifier.getId())));
     }
 
     private void applyRequest(Campaign campaign, CreateCampaignRequest req) {
@@ -145,9 +172,7 @@ public class CampaignService {
         if (campaign.getStatus() != Campaign.VerificationStatus.PENDING) {
             throw new IllegalStateException("Only pending campaigns can be reviewed");
         }
-        if (verifier.getRole() != User.Role.ADMIN
-                && (verifier.getRole() != User.Role.VERIFIER
-                || !verifier.getVerifierCategories().contains(campaign.getCategory()))) {
+        if (!canReview(verifier, campaign)) {
             throw new SecurityException("Verifier is not qualified for this category");
         }
         if (campaign.getRequester().getId().equals(verifier.getId())) {
@@ -174,7 +199,9 @@ public class CampaignService {
                     case REJECT -> "CAMPAIGN_REJECTED";
                     case REQUEST_INFO -> "INFO_REQUESTED";
                 }, campaignId, campaign.getVerificationNote());
-        return CampaignResponse.from(campaignRepository.save(campaign));
+        Campaign saved = campaignRepository.save(campaign);
+        if (req.action() == ReviewAction.APPROVE) events.publishEvent(new CampaignPublishedEvent(saved.getId()));
+        return CampaignResponse.from(saved);
     }
 
     public List<PendingOutcome> getPendingOutcomes(String verifierEmail) {
@@ -182,8 +209,7 @@ public class CampaignService {
                 .orElseThrow(() -> new IllegalArgumentException("Verifier not found"));
         return campaignRepository.findByStatus(Campaign.VerificationStatus.VERIFIED).stream()
                 .filter(c -> c.getOutcomeSummary() != null && !c.isOutcomeApproved())
-                .filter(c -> verifier.getRole() == User.Role.ADMIN
-                        || verifier.getVerifierCategories().contains(c.getCategory()))
+                .filter(c -> canReview(verifier, c))
                 .map(c -> new PendingOutcome(CampaignResponse.from(c),
                         c.getOutcomeSummary(), c.getOutcomeProofUrl())).toList();
     }
@@ -210,9 +236,7 @@ public class CampaignService {
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found"));
         User verifier = userRepository.findByEmail(verifierEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Verifier not found"));
-        if (verifier.getRole() != User.Role.ADMIN
-                && (verifier.getRole() != User.Role.VERIFIER
-                || !verifier.getVerifierCategories().contains(campaign.getCategory()))) {
+        if (!canReview(verifier, campaign)) {
             throw new SecurityException("Verifier is not qualified for this category");
         }
         if (campaign.getRequester().getId().equals(verifier.getId())) {

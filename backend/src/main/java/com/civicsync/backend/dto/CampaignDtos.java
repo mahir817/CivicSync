@@ -20,7 +20,8 @@ public class CampaignDtos {
             String bloodType,
             Integer unitsNeeded,
             String hospital,
-            Campaign.Urgency urgency
+            Campaign.Urgency urgency,
+            @NotBlank String verifierCode
     ) {}
 
     public record CampaignResponse(
@@ -44,6 +45,7 @@ public class CampaignDtos {
             Long requesterId,
             String requesterName,
             String verifiedByName,
+            String requestedVerifierName,
             Instant createdAt,
             Instant verifiedAt,
             String outcomeSummary,
@@ -73,6 +75,7 @@ public class CampaignDtos {
                     c.getRequester() != null ? c.getRequester().getId() : null,
                     c.getRequester() != null ? c.getRequester().getFullName() : null,
                     c.getVerifiedBy() != null ? c.getVerifiedBy().getFullName() : null,
+                    c.getRequestedVerifier() != null ? c.getRequestedVerifier().getFullName() : null,
                     c.getCreatedAt(),
                     c.getVerifiedAt(),
                     c.isOutcomeApproved() ? c.getOutcomeSummary() : null,

@@ -113,6 +113,33 @@ public class DonationService {
                 .stream().map(DonationResponse::from).toList();
     }
 
+    @Transactional
+    public DonationResponse confirmBlood(Long campaignId, Long donationId, String requesterEmail) {
+        Donation donation = donationRepository.findLockedById(donationId)
+                .orElseThrow(() -> new IllegalArgumentException("Pledge not found"));
+        if (!donation.getCampaign().getId().equals(campaignId)
+                || donation.getCampaign().getCategory() != Campaign.Category.BLOOD
+                || donation.getType() != Donation.Type.PLEDGE) {
+            throw new IllegalArgumentException("This is not a blood pledge for the campaign");
+        }
+        if (!donation.getCampaign().getRequester().getEmail().equalsIgnoreCase(requesterEmail)) {
+            throw new SecurityException("Only the requester can confirm a blood donation");
+        }
+        if (donation.getStatus() != Donation.Status.PLEDGED) {
+            throw new IllegalStateException("Blood donation was already confirmed");
+        }
+        Instant now = Instant.now();
+        donation.setStatus(Donation.Status.CONFIRMED);
+        donation.setConfirmedAt(now);
+        donation.setConfirmedBy(donation.getCampaign().getRequester());
+        User donor = donation.getDonor();
+        donor.setLastBloodDonationAt(now);
+        userRepository.save(donor);
+        notifications.send(donor, "blood-confirmed-" + donation.getId(), "BLOOD_DONATION_CONFIRMED", campaignId,
+                "Donation recorded. Your estimated next date is " + now.plus(112, java.time.temporal.ChronoUnit.DAYS));
+        return DonationResponse.from(donationRepository.save(donation));
+    }
+
     public List<DonationResponse> getPledgesForRequester(String email) {
         User requester = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

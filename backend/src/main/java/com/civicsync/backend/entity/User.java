@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -35,6 +36,16 @@ public class User {
 
     private String area;
     private String phone;
+    private LocalDate dateOfBirth;
+    private String bloodGroup;
+    @Enumerated(EnumType.STRING)
+    private IdentityDocumentType identityDocumentType;
+    private String identityDocumentFile;
+    private boolean donorOptIn = false;
+    private boolean emailAlertsEnabled = true;
+    private Instant lastBloodDonationAt;
+    @Column(unique = true)
+    private String verifierCode;
     private String language = "en";
     private boolean remindersEnabled = true;
     private boolean legacyRoleNeedsReview = false;
@@ -57,4 +68,5 @@ public class User {
     public enum Role {
         USER, VERIFIER, ADMIN
     }
+    public enum IdentityDocumentType { NID, BIRTH_CERTIFICATE }
 }

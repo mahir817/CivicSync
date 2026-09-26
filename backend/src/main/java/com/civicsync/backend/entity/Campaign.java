@@ -58,6 +58,10 @@ public class Campaign {
     @JoinColumn(name = "verified_by")
     private User verifiedBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "requested_verifier_id")
+    private User requestedVerifier;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

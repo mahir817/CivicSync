@@ -239,6 +239,8 @@ public class DataSeeder implements CommandLineRunner {
         );
 
         user.setRole(role);
+        if (role == User.Role.VERIFIER) user.setVerifierCode(
+                java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
 
         return userRepository.save(user);
     }
@@ -285,6 +287,7 @@ public class DataSeeder implements CommandLineRunner {
         campaign.setRaisedAmount(raised);
 
         campaign.setRequester(requester);
+        campaign.setRequestedVerifier(verifier);
         campaign.setStatus(status);
 
         campaign.setCreatedAt(

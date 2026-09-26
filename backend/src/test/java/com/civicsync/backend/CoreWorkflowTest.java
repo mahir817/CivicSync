@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,6 +30,7 @@ class CoreWorkflowTest {
     private User user(String email, User.Role role) {
         User u = new User();
         u.setEmail(email); u.setFullName(email); u.setPasswordHash("unused"); u.setRole(role);
+        if (role == User.Role.VERIFIER) u.setVerifierCode(java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
         return users.save(u);
     }
     private String token(User u) { return "Bearer " + jwt.generateToken(u.getEmail(), u.getRole().name()); }
@@ -38,9 +40,22 @@ class CoreWorkflowTest {
 
     @Test
     void registrationCannotGrantAdmin() throws Exception {
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"fullName\":\"Attacker\",\"email\":\"attacker@example.com\",\"password\":\"secret123\",\"role\":\"ADMIN\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("USER"));
+        MockMultipartFile registration = new MockMultipartFile("registration", "registration.json", "application/json",
+                "{\"fullName\":\"Attacker\",\"email\":\"attacker@example.com\",\"password\":\"secret123\",\"phone\":\"01700000000\",\"area\":\"Mirpur\",\"identityDocumentType\":\"NID\",\"dateOfBirth\":\"2000-01-01\",\"bloodGroup\":\"O+\",\"emailAlertsEnabled\":true,\"role\":\"ADMIN\"}".getBytes());
+        MockMultipartFile document = new MockMultipartFile("identityDocument", "nid.pdf", "application/pdf", "%PDF-1.4 test".getBytes());
+        MockHttpServletResponse registered = mvc.perform(multipart("/api/auth/register").file(registration).file(document))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("USER"))
+                .andReturn().getResponse();
+        String bearer = "Bearer " + json.readTree(registered.getContentAsString()).get("token").asText();
+        long ownerId = json.readTree(registered.getContentAsString()).get("userId").asLong();
+        mvc.perform(get("/api/me").header("Authorization", bearer))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.area").value("Mirpur"))
+                .andExpect(jsonPath("$.bloodGroup").value("O+"))
+                .andExpect(jsonPath("$.identityDocumentFile").doesNotExist());
+        mvc.perform(get("/api/identity-documents/{id}", ownerId).header("Authorization", bearer))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/identity-documents/{id}", ownerId))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -48,20 +63,27 @@ class CoreWorkflowTest {
         User requester = user("requester@example.com", User.Role.USER);
         User donor = user("donor@example.com", User.Role.USER);
         User verifier = user("verifier@example.com", User.Role.VERIFIER);
+        User otherVerifier = user("other-verifier@example.com", User.Role.VERIFIER);
+        otherVerifier.getVerifierCategories().add(Campaign.Category.PET_CARE);
+        users.save(otherVerifier);
         verifier.getVerifierCategories().add(Campaign.Category.BLOOD);
+        verifier.getVerifierCategories().add(Campaign.Category.PET_CARE);
         users.save(verifier);
+
+        mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Bad assignment\",\"description\":\"Treatment request\",\"category\":\"PET_CARE\",\"verifierCode\":\"INVALID\"}"))
+                .andExpect(status().isBadRequest());
 
         long campaignId = id(mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Vet care\",\"description\":\"Treatment request\",\"category\":\"PET_CARE\",\"location\":\"Dhaka\",\"goalAmount\":1000}"))
+                .content("{\"title\":\"Vet care\",\"description\":\"Treatment request\",\"category\":\"PET_CARE\",\"location\":\"Dhaka\",\"goalAmount\":1000,\"verifierCode\":\"" + verifier.getVerifierCode() + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse());
         mvc.perform(get("/api/campaigns")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == " + campaignId + ")]").isEmpty());
         mvc.perform(get("/api/campaigns/{id}", campaignId)).andExpect(status().isNotFound());
         mvc.perform(put("/api/campaigns/{id}/verify", campaignId).param("approve", "true")
-                .header("Authorization", token(verifier))).andExpect(status().isForbidden());
-        verifier.getVerifierCategories().add(Campaign.Category.PET_CARE);
-        users.save(verifier);
+                .header("Authorization", token(otherVerifier))).andExpect(status().isForbidden());
         mvc.perform(put("/api/campaigns/{id}/verify", campaignId).param("approve", "true")
                 .header("Authorization", token(verifier))).andExpect(status().isOk());
         mvc.perform(get("/api/campaigns"))
@@ -105,15 +127,15 @@ class CoreWorkflowTest {
 
         mvc.perform(patch("/api/admin/users/{id}", partner.getId())
                 .header("Authorization", token(admin)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"VERIFIER\",\"verifierCategories\":[\"BLOOD\"],\"reviewed\":true}"))
+                .content("{\"role\":\"VERIFIER\",\"verifierCategories\":[\"BLOOD\",\"CHARITY\"],\"reviewed\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("VERIFIER"));
 
         long campaignId = id(mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Charity cause\",\"description\":\"Community support\",\"category\":\"CHARITY\",\"location\":\"Dhaka\"}"))
+                .content("{\"title\":\"Charity cause\",\"description\":\"Community support\",\"category\":\"CHARITY\",\"location\":\"Dhaka\",\"verifierCode\":\"" + users.findById(partner.getId()).orElseThrow().getVerifierCode() + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse());
         mvc.perform(get("/api/campaigns/pending").header("Authorization", token(partner)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
         mvc.perform(put("/api/campaigns/{id}/verify", campaignId).param("approve", "true")
                 .header("Authorization", token(admin))).andExpect(status().isOk());
 
@@ -142,10 +164,15 @@ class CoreWorkflowTest {
     void bloodReviewRequestsInformationAndKeepsPledgeContactPrivate() throws Exception {
         User requester = user("blood-requester@example.com", User.Role.USER);
         User donor = user("blood-donor@example.com", User.Role.USER);
+        donor.setArea("Dhanmondi"); donor.setBloodGroup("O+"); donor.setPhone("01700000000"); donor.setDonorOptIn(true);
+        users.save(donor);
+        User nearby = user("nearby-donor@example.com", User.Role.USER);
+        nearby.setArea("Mirpur"); nearby.setBloodGroup("O+"); nearby.setDonorOptIn(true);
+        users.save(nearby);
         User verifier = user("blood-partner@example.com", User.Role.VERIFIER);
         verifier.getVerifierCategories().add(Campaign.Category.BLOOD);
         users.save(verifier);
-        String request = "{\"title\":\"O+ blood needed\",\"description\":\"Urgent surgery\",\"category\":\"BLOOD\",\"location\":\"Dhanmondi\",\"patientName\":\"Amina Rahman\",\"bloodType\":\"O+\",\"unitsNeeded\":2,\"hospital\":\"Delta Hospital\",\"urgency\":\"URGENT\"}";
+        String request = "{\"title\":\"O+ blood needed\",\"description\":\"Urgent surgery\",\"category\":\"BLOOD\",\"location\":\"Dhanmondi\",\"patientName\":\"Amina Rahman\",\"bloodType\":\"O+\",\"unitsNeeded\":2,\"hospital\":\"Delta Hospital\",\"urgency\":\"URGENT\",\"verifierCode\":\"" + verifier.getVerifierCode() + "\"}";
         mvc.perform(post("/api/campaigns").header("Authorization", token(requester))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"Incomplete\",\"description\":\"Missing blood fields\",\"category\":\"BLOOD\"}"))
@@ -175,10 +202,13 @@ class CoreWorkflowTest {
                 .header("Authorization", token(donor)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"type\":\"MONETARY\",\"amount\":100}"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/campaigns/{id}/donations", campaignId)
+        mvc.perform(get("/api/blood-donors").header("Authorization", token(requester))
+                .param("bloodGroup", "O+").param("area", "Dhanmondi"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(donor.getId()));
+        long pledgeId = id(mvc.perform(post("/api/campaigns/{id}/donations", campaignId)
                 .header("Authorization", token(donor)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"type\":\"PLEDGE\",\"contactPhone\":\"01700000000\",\"message\":\"Available today\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PLEDGED"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PLEDGED")).andReturn().getResponse());
         mvc.perform(get("/api/campaigns/{id}/donations", campaignId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].contactPhone").isEmpty())
                 .andExpect(jsonPath("$[0].message").isEmpty());
@@ -188,5 +218,14 @@ class CoreWorkflowTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         mvc.perform(get("/api/me/notifications").header("Authorization", token(requester)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.messageKey == 'NEW_PLEDGE')]").isNotEmpty());
+        mvc.perform(put("/api/campaigns/{id}/donations/{pledgeId}/confirm-blood", campaignId, pledgeId)
+                .header("Authorization", token(donor))).andExpect(status().isForbidden());
+        mvc.perform(put("/api/campaigns/{id}/donations/{pledgeId}/confirm-blood", campaignId, pledgeId)
+                .header("Authorization", token(requester))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+        mvc.perform(get("/api/me").header("Authorization", token(donor)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.nextEligibleAt").exists());
+        mvc.perform(get("/api/campaigns/{id}", campaignId))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.raisedAmount").value(0.0));
     }
 }

@@ -4,6 +4,8 @@ import com.civicsync.backend.dto.AuthDtos.*;
 import com.civicsync.backend.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,10 +18,11 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
+    @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> register(@Valid @RequestPart("registration") RegisterRequest req,
+                                      @RequestPart("identityDocument") MultipartFile identityDocument) {
         try {
-            return ResponseEntity.ok(authService.register(req));
+            return ResponseEntity.ok(authService.register(req, identityDocument));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         }

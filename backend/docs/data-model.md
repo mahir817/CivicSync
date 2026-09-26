@@ -1,11 +1,12 @@
 ﻿# CivicSync data model
 
-The MySQL schema is versioned in `src/main/resources/db/migration`. The application validates it at startup. This diagram reflects migration V6.
+The MySQL schema is versioned in `src/main/resources/db/migration`. The application validates it at startup. This diagram reflects migration V7.
 
 ```mermaid
 erDiagram
   USERS ||--o{ CAMPAIGNS : requests
   USERS ||--o{ CAMPAIGNS : verifies
+  USERS ||--o{ CAMPAIGNS : assigned_to_review
   USERS ||--o{ DONATIONS : supports
   USERS ||--o{ DONATIONS : confirms_receipt
   USERS ||--o{ CIVIC_REPORTS : reports
@@ -28,6 +29,14 @@ erDiagram
     enum role
     varchar area
     varchar phone
+    date date_of_birth
+    varchar blood_group
+    enum identity_document_type
+    varchar identity_document_file
+    boolean donor_opt_in
+    boolean email_alerts_enabled
+    datetime last_blood_donation_at
+    varchar verifier_code UK
     varchar language
     boolean reminders_enabled
     boolean legacy_role_needs_review
@@ -36,6 +45,7 @@ erDiagram
     bigint id PK
     bigint requester_id FK
     bigint verified_by FK
+    bigint requested_verifier_id FK
     enum category
     enum status
     varchar title
