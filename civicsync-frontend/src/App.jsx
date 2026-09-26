@@ -14,6 +14,7 @@ import Inbox from './pages/Inbox';
 import Review from './pages/Review';
 import Admin from './pages/Admin';
 import Navbar from './components/Navbar';
+import { NewPostProvider } from './components/NewPost';
 import { authUser } from './components/UI';
 import { LocaleProvider, useLocale } from './i18n';
 import bgImage from './assets/bg.jpg';
@@ -51,4 +52,4 @@ function Shell() {
   </div>;
 }
 
-export default function App() { return <LocaleProvider><BrowserRouter><Shell /></BrowserRouter></LocaleProvider>; }
+export default function App() { return <LocaleProvider><BrowserRouter><NewPostProvider><Shell /></NewPostProvider></BrowserRouter></LocaleProvider>; }

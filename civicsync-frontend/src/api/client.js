@@ -23,6 +23,7 @@ export const donationApi = {
 // Civic Report API
 export const civicReportApi = {
   getActive: () => api.get('/civic-reports'),
+  getMine: () => api.get('/civic-reports/mine'),
   getById: (id) => api.get(`/civic-reports/${id}`),
   create: (data) => api.post('/civic-reports', data),
   confirm: (id) => api.post(`/civic-reports/${id}/confirm`),
@@ -43,6 +44,8 @@ export const campaignApi = {
   getPending: () => api.get('/campaigns/pending'),
   getPendingOutcomes: () => api.get('/campaigns/outcomes/pending'),
   create: (data) => api.post('/campaigns', data),
+  resubmit: (id, data) => api.patch(`/campaigns/${id}`, data),
+  review: (id, action, reason) => api.put(`/campaigns/${id}/review`, { action, reason }),
   verify: (id, approve) => api.put(`/campaigns/${id}/verify`, null, { params: { approve } }),
   submitOutcome: (id, data) => api.post(`/campaigns/${id}/outcome`, data),
   approveOutcome: (id) => api.put(`/campaigns/${id}/outcome/approve`),
@@ -77,6 +80,7 @@ export const profileApi = {
 };
 
 export const adminApi = {
+  dashboard: () => api.get('/admin/dashboard'),
   users: () => api.get('/admin/users'),
   updateUser: (id, data) => api.patch(`/admin/users/${id}`, data),
   disputes: () => api.get('/admin/disputes'),
@@ -91,10 +95,16 @@ export const uploadApi = { image: (file) => {
 
 campaignApi.getMine = () => api.get('/campaigns/mine');
 donationApi.getMine = () => api.get('/donations/mine');
+donationApi.getPledges = () => api.get('/donations/pledges');
 
 // Attachment API
 export const attachmentApi = {
   getForCampaign: (campaignId) => api.get(`/campaigns/${campaignId}/attachments`),
+  upload: (campaignId, files) => {
+    const form = new FormData();
+    files.forEach(file => form.append('files', file));
+    return api.post(`/campaigns/${campaignId}/attachments`, form);
+  },
 };
 
 // Comment API

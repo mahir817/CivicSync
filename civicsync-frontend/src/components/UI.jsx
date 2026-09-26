@@ -20,7 +20,17 @@ export function Notice({ children, tone = 'error' }) { return <div role="alert" 
 export function Badge({ status }) {
   const { t } = useLocale();
   const key = statusKey[status] || (status || '').toLowerCase();
-  return <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{t(key)}</span>;
+  const colors = {
+    PENDING: 'border-slate-300 bg-slate-50 text-slate-700 border-dashed',
+    INFO_REQUESTED: 'border-amber-300 bg-amber-50 text-amber-800',
+    VERIFIED: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    COMPLETED: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    CONFIRMED: 'border-rose-200 bg-rose-50 text-rose-800',
+    UNCONFIRMED: 'border-amber-200 bg-amber-50 text-amber-800',
+    REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+    RESOLVED: 'border-slate-200 bg-slate-50 text-slate-600',
+  };
+  return <span className={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ' + (colors[status] || 'border-blue-200 bg-blue-50 text-blue-700')}>{status === 'VERIFIED' && <span aria-hidden="true" className="mr-1">✓</span>}{t(key)}</span>;
 }
 export function Category({ value }) { const { t } = useLocale(); return <>{t(categoryKey[value] || value)}</>; }
 export function Spinner() { const { t } = useLocale(); return <p className="py-12 text-center text-slate-600">{t('loading')}</p>; }

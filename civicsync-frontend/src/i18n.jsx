@@ -40,6 +40,24 @@ const en = {
   signInRequired: 'Sign in to continue.', reportSubmitted: 'Your report was submitted.',
   pledged: 'Pledged', userRole: 'User', verifierRole: 'Verifier partner', adminRole: 'Admin',
   campaignType: 'Campaign', civicType: 'Civic report', openDispute: 'Open', resolvedDispute: 'Resolved', dismissedDispute: 'Dismissed',
+  newPost: 'New post', choosePostType: 'What would you like to share?', requestHelp: 'Request help',
+  composerPrompt: 'Need help or want to report something?', next: 'Next', previous: 'Previous',
+  patientName: 'Patient name', bloodType: 'Blood type', unitsNeeded: 'Units needed', hospital: 'Hospital', urgency: 'Urgency',
+  routine: 'Routine', soon: 'Soon', urgent: 'Urgent', critical: 'Critical',
+  civicFilter: 'Civic reports', alertFilter: 'Alerts', updatesFilter: 'Impact updates',
+  viewMap: 'View on map', viewDetails: 'View details', support: 'Support', like: 'Like',
+  reviewReason: 'Review reason', requestInfo: 'Request more information', reviewDetails: 'Review request',
+  updateRequest: 'Update request', resubmit: 'Resubmit for review',
+  dashboard: 'Dashboard', activeReports: 'Active reports', liveCampaigns: 'Live campaigns', openDisputes: 'Open disputes', pendingReceipts: 'Pending receipts',
+  yourReports: 'My civic reports', pledgesReceived: 'Blood and resource pledges', contactPhone: 'Contact phone',
+  newPledge: 'Someone pledged to help your request.', campaignApproved: 'Your request was verified and is now public.',
+  campaignRejected: 'Your request was declined.', infoRequested: 'Your verifier needs more information.',
+  proofImpact: 'Proof of impact is now available for a request you supported.',
+  goalReached: 'Goal reached', live: 'Live', awaitingProof: 'Awaiting proof of impact',
+  healthLayer: 'Health alerts', campaignLayer: 'Campaigns', civicLayer: 'Waterlogging', locateMe: 'Locate me',
+  approximateArea: 'Approximate area center', noMapItems: 'No items in this layer yet.',
+  infoRequestedStatus: 'More information needed', resolvedStatus: 'Resolved',
+  coordinatePair: 'Enter both latitude and longitude, or leave both blank.',
 };
 
 const bn = {
@@ -81,6 +99,24 @@ const bn = {
   signInRequired: 'চালিয়ে যেতে লগইন করুন।', reportSubmitted: 'আপনার প্রতিবেদন জমা হয়েছে।',
   pledged: 'অঙ্গীকার করা হয়েছে', userRole: 'ব্যবহারকারী', verifierRole: 'যাচাইকারী অংশীদার', adminRole: 'অ্যাডমিন',
   campaignType: 'অভিযান', civicType: 'নাগরিক প্রতিবেদন', openDispute: 'উন্মুক্ত', resolvedDispute: 'সমাধান হয়েছে', dismissedDispute: 'খারিজ',
+  newPost: 'নতুন পোস্ট', choosePostType: 'আপনি কী শেয়ার করতে চান?', requestHelp: 'সাহায্য চাই',
+  composerPrompt: 'সাহায্য দরকার বা কিছু জানাতে চান?', next: 'পরবর্তী', previous: 'আগের ধাপ',
+  patientName: 'রোগীর নাম', bloodType: 'রক্তের গ্রুপ', unitsNeeded: 'কত ইউনিট দরকার', hospital: 'হাসপাতাল', urgency: 'জরুরিতা',
+  routine: 'সাধারণ', soon: 'শিগগির', urgent: 'জরুরি', critical: 'অতি জরুরি',
+  civicFilter: 'নাগরিক প্রতিবেদন', alertFilter: 'সতর্কতা', updatesFilter: 'ফলাফলের খবর',
+  viewMap: 'মানচিত্রে দেখুন', viewDetails: 'বিস্তারিত দেখুন', support: 'সহায়তা', like: 'পছন্দ',
+  reviewReason: 'যাচাইয়ের কারণ', requestInfo: 'আরও তথ্য চাই', reviewDetails: 'অনুরোধ যাচাই',
+  updateRequest: 'অনুরোধ হালনাগাদ', resubmit: 'আবার যাচাইয়ের জন্য পাঠান',
+  dashboard: 'ড্যাশবোর্ড', activeReports: 'সক্রিয় প্রতিবেদন', liveCampaigns: 'চলমান অভিযান', openDisputes: 'খোলা অভিযোগ', pendingReceipts: 'প্রাপ্তি নিশ্চিতের অপেক্ষায়',
+  yourReports: 'আমার নাগরিক প্রতিবেদন', pledgesReceived: 'রক্ত ও উপকরণ দেওয়ার অঙ্গীকার', contactPhone: 'যোগাযোগের ফোন',
+  newPledge: 'আপনার অনুরোধে কেউ সাহায্যের অঙ্গীকার করেছেন।', campaignApproved: 'আপনার অনুরোধ যাচাই হয়ে সবার জন্য প্রকাশিত হয়েছে।',
+  campaignRejected: 'আপনার অনুরোধ প্রত্যাখ্যাত হয়েছে।', infoRequested: 'যাচাইকারীর আরও তথ্য দরকার।',
+  proofImpact: 'আপনার সাহায্য করা অনুরোধের ফলাফলের প্রমাণ পাওয়া গেছে।',
+  goalReached: 'লক্ষ্য পূরণ', live: 'চলমান', awaitingProof: 'ফলাফলের প্রমাণের অপেক্ষায়',
+  healthLayer: 'স্বাস্থ্য সতর্কতা', campaignLayer: 'অভিযান', civicLayer: 'জলাবদ্ধতা', locateMe: 'আমাকে খুঁজুন',
+  approximateArea: 'এলাকার আনুমানিক কেন্দ্র', noMapItems: 'এখানে এখন কিছু নেই।',
+  infoRequestedStatus: 'আরও তথ্য দরকার', resolvedStatus: 'সমাধান হয়েছে',
+  coordinatePair: 'অক্ষাংশ ও দ্রাঘিমাংশ দুটোই দিন, অথবা দুটোই ফাঁকা রাখুন।',
 };
 
 const LocaleContext = createContext(null);
@@ -92,4 +128,4 @@ export function LocaleProvider({ children }) {
 }
 export function useLocale() { return useContext(LocaleContext); }
 export const categoryKey = { BLOOD: 'blood', PET_CARE: 'petCare', CHARITY: 'charity', DISASTER_RELIEF: 'disasterRelief' };
-export const statusKey = { PENDING: 'pending', VERIFIED: 'verified', REJECTED: 'rejected', COMPLETED: 'completed' };
+export const statusKey = { PENDING: 'pending', INFO_REQUESTED: 'infoRequestedStatus', VERIFIED: 'verified', REJECTED: 'rejected', COMPLETED: 'completed', UNCONFIRMED: 'unconfirmed', CONFIRMED: 'confirmed', RESOLVED: 'resolvedStatus' };
