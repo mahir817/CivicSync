@@ -6,7 +6,8 @@ import { Page, Card, Button, Notice, Spinner, fmtDate } from '../components/UI';
 
 const messageKeys = { MATCHING_CAMPAIGN: 'matchingCampaign', REMINDER_ACTIVITY: 'activityReminder',
   NEW_PLEDGE: 'newPledge', CAMPAIGN_APPROVED: 'campaignApproved', CAMPAIGN_REJECTED: 'campaignRejected',
-  INFO_REQUESTED: 'infoRequested', PROOF_OF_IMPACT: 'proofImpact' };
+  INFO_REQUESTED: 'infoRequested', PROOF_OF_IMPACT: 'proofImpact',
+  REVIEW_ASSIGNED: 'reviewAssigned', BLOOD_DONATION_CONFIRMED: 'bloodDonationConfirmed' };
 
 export default function Inbox() {
   const { t } = useLocale();

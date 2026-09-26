@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi, likeApi, disputeApi, uploadApi } from '../api/client';
+import { campaignApi, civicReportApi, donationApi, attachmentApi, commentApi, likeApi, disputeApi, uploadApi, bloodDonorApi } from '../api/client';
 import { useLocale } from '../i18n';
 import { Page, Card, Button, Field, Notice, Badge, Category, Spinner, authUser, fmtDate } from '../components/UI';
 
@@ -12,6 +12,8 @@ export default function PostDetail() {
   const user = authUser();
   const [post, setPost] = useState(null);
   const [donations, setDonations] = useState([]);
+  const [donors, setDonors] = useState([]);
+  const [donorSearch, setDonorSearch] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [comments, setComments] = useState([]);
   const [likes, setLikes] = useState({ count: 0, liked: false });
@@ -93,7 +95,8 @@ export default function PostDetail() {
         patientName: edit.category === 'BLOOD' ? edit.patientName : null,
         bloodType: edit.category === 'BLOOD' ? edit.bloodType : null,
         unitsNeeded: edit.category === 'BLOOD' ? Number(edit.unitsNeeded) : null,
-        hospital: edit.category === 'BLOOD' ? edit.hospital : null, urgency: edit.urgency };
+        hospital: edit.category === 'BLOOD' ? edit.hospital : null, urgency: edit.urgency,
+        verifierCode: edit.verifierCode };
       await campaignApi.resubmit(id, payload);
       if (editFiles.length) await attachmentApi.upload(id, editFiles);
       setEditOpen(false); setEditFiles([]); await refresh(); setNotice(t('resubmit'));
@@ -108,6 +111,12 @@ export default function PostDetail() {
     setOutcome(''); setProof(null);
   };
   const share = async () => { try { await navigator.clipboard.writeText(window.location.href); setNotice(t('copied')); } catch { setError(t('error')); } };
+  const findDonors = async () => {
+    if (!user) { navigate('/login'); return; }
+    setDonorSearch(true); setError('');
+    try { const { data } = await bloodDonorApi.find(post.bloodType, post.location); setDonors(data); }
+    catch (err) { setError(err.response?.data?.message || t('error')); }
+  };
   return <Page title={loading ? t('loading') : civic ? t('reports') : post?.title} actions={<Button variant="secondary" onClick={() => navigate(-1)}>{t('back')}</Button>}>
     {loading ? <Spinner /> : error && !post ? <Notice>{error}</Notice> : post && <div className="space-y-5">
       {error && <Notice>{error}</Notice>}{notice && <Notice tone="success">{notice}</Notice>}
@@ -131,7 +140,7 @@ export default function PostDetail() {
           {civic && user?.id === post.reporterId && post.status !== 'RESOLVED' && <Button variant="secondary" disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await civicReportApi.resolve(id); navigate('/civic-reports'); } catch (err) { setError(err.response?.data?.message || t('error')); } finally { setBusy(false); } }}>{t('resolve')}</Button>}
         </div>
       </Card>
-      {!civic && <Card><h2 className="text-xl font-bold">{t('trustTrail')}</h2><div className="mt-5 space-y-0">{[
+      {!civic && <Card><h2 className="text-xl font-bold">{t('trustTrail')}</h2>{post.requestedVerifierName && <p className="mt-2 text-sm text-slate-600">{t('assignedVerifier')}: <strong>{post.requestedVerifierName}</strong></p>}<div className="mt-5 space-y-0">{[
         [t('submitted'), fmtDate(post.createdAt), true],
         [t('reviewed'), post.verifiedByName ? post.verifiedByName + ' · ' + fmtDate(post.verifiedAt) : t('pending'), !!post.verifiedByName],
         [t('live'), post.status === 'VERIFIED' || post.status === 'COMPLETED' ? t('verified') : t('pending'), post.status === 'VERIFIED' || post.status === 'COMPLETED'],
@@ -142,7 +151,8 @@ export default function PostDetail() {
         {post.outcomeApproved && <div className="mt-4 rounded-xl bg-emerald-50 p-4"><h3 className="font-bold">{t('evidence')}</h3><p>{post.outcomeSummary}</p>{post.outcomeProofUrl && <a className="font-bold text-blue-600" href={post.outcomeProofUrl} target="_blank" rel="noreferrer">{t('evidence')}</a>}</div>}
         {attachments.length > 0 && <div className="mt-4 space-y-1">{attachments.map(a => <a key={a.id} href={a.url || '/api/files/' + a.storedFileName} target="_blank" rel="noreferrer" className="block text-sm font-medium text-blue-600">{a.fileName}</a>)}</div>}
       </Card>}
-      {!civic && user?.id === post.requesterId && (post.status === 'INFO_REQUESTED' || post.status === 'PENDING') && <Card><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{t('updateRequest')}</h2><Button variant="secondary" onClick={() => setEditOpen(!editOpen)}>{t('updateRequest')}</Button></div>{editOpen && edit && <form onSubmit={resubmit} className="mt-4 grid gap-3 sm:grid-cols-2"><Field label={t('title')} required value={edit.title || ''} onChange={event => setEdit({ ...edit, title: event.target.value })}/><Field label={t('location')} value={edit.location || ''} onChange={event => setEdit({ ...edit, location: event.target.value })}/>{edit.category === 'BLOOD' && <><Field label={t('patientName')} required value={edit.patientName || ''} onChange={event => setEdit({ ...edit, patientName: event.target.value })}/><Field label={t('bloodType')} as="select" value={edit.bloodType || 'O+'} onChange={event => setEdit({ ...edit, bloodType: event.target.value })}>{['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(type => <option key={type}>{type}</option>)}</Field><Field label={t('unitsNeeded')} type="number" min="1" required value={edit.unitsNeeded || 1} onChange={event => setEdit({ ...edit, unitsNeeded: event.target.value })}/><Field label={t('hospital')} required value={edit.hospital || ''} onChange={event => setEdit({ ...edit, hospital: event.target.value })}/></>}<Field label={t('description')} as="textarea" rows={4} required className="sm:col-span-2" value={edit.description || ''} onChange={event => setEdit({ ...edit, description: event.target.value })}/><Field label={t('evidence')} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={event => setEditFiles(Array.from(event.target.files || []))}/><div className="flex items-end"><Button disabled={busy} type="submit">{t('resubmit')}</Button></div></form>}</Card>}
+      {!civic && user?.id === post.requesterId && (post.status === 'INFO_REQUESTED' || post.status === 'PENDING') && <Card><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{t('updateRequest')}</h2><Button variant="secondary" onClick={() => setEditOpen(!editOpen)}>{t('updateRequest')}</Button></div>{editOpen && edit && <form onSubmit={resubmit} className="mt-4 grid gap-3 sm:grid-cols-2"><Field label={t('title')} required value={edit.title || ''} onChange={event => setEdit({ ...edit, title: event.target.value })}/><Field label={t('location')} value={edit.location || ''} onChange={event => setEdit({ ...edit, location: event.target.value })}/>{edit.category === 'BLOOD' && <><Field label={t('patientName')} required value={edit.patientName || ''} onChange={event => setEdit({ ...edit, patientName: event.target.value })}/><Field label={t('bloodType')} as="select" value={edit.bloodType || 'O+'} onChange={event => setEdit({ ...edit, bloodType: event.target.value })}>{['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(type => <option key={type}>{type}</option>)}</Field><Field label={t('unitsNeeded')} type="number" min="1" required value={edit.unitsNeeded || 1} onChange={event => setEdit({ ...edit, unitsNeeded: event.target.value })}/><Field label={t('hospital')} required value={edit.hospital || ''} onChange={event => setEdit({ ...edit, hospital: event.target.value })}/></>}<Field label={t('verifierCode')} required value={edit.verifierCode || ''} onChange={event => setEdit({ ...edit, verifierCode: event.target.value.toUpperCase() })}/><Field label={t('description')} as="textarea" rows={4} required className="sm:col-span-2" value={edit.description || ''} onChange={event => setEdit({ ...edit, description: event.target.value })}/><Field label={t('evidence')} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={event => setEditFiles(Array.from(event.target.files || []))}/><div className="flex items-end"><Button disabled={busy} type="submit">{t('resubmit')}</Button></div></form>}</Card>}
+      {!civic && post.category === 'BLOOD' && post.status === 'VERIFIED' && <Card><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">{t('findDonors')}</h2><p className="text-sm text-slate-600">{t('nearestDonors')}</p></div><Button variant="secondary" onClick={findDonors}>{t('findDonors')}</Button></div>{donorSearch && <div className="mt-4 space-y-3">{donors.length ? donors.map(donor => <div key={donor.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><p className="font-semibold">{donor.fullName} · {donor.bloodGroup}</p><p className="text-sm text-slate-600">{donor.area}{donor.distanceKm != null && ` · ${donor.distanceKm.toFixed(1)} km`}</p><p className="text-xs text-slate-500">{donor.nextEligibleAt && new Date(donor.nextEligibleAt) > new Date() ? t('donorUnavailable') + ': ' + fmtDate(donor.nextEligibleAt) : t('bloodReady')}</p></div>{(!donor.nextEligibleAt || new Date(donor.nextEligibleAt) <= new Date()) && <a className="font-bold text-blue-700" href={'tel:' + donor.phone}>{donor.phone}</a>}</div>) : <p className="text-sm text-slate-500">{t('empty')}</p>}</div>}</Card>}
       {!civic && post.status === 'VERIFIED' && <Card><div id="contribute"><h2 className="text-xl font-bold">{t(pledgeOnly ? 'pledge' : 'donate')}</h2><form onSubmit={contribute} className="mt-4 space-y-4">
         {!pledgeOnly && <Field label={t('amount')} type="number" min="1" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} />}
         {pledgeOnly && <Field label={t('contactPhone')} type="tel" required value={contactPhone} onChange={e => setContactPhone(e.target.value)}/>}

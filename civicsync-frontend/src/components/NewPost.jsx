@@ -7,7 +7,7 @@ import { authUser, Button, Card, Field, Notice } from './UI';
 
 const NewPostContext = createContext(null);
 const categories = ['BLOOD', 'PET_CARE', 'CHARITY', 'DISASTER_RELIEF'];
-const initial = { title: '', description: '', category: 'BLOOD', location: '', latitude: '', longitude: '', goalAmount: '', patientName: '', bloodType: 'O+', unitsNeeded: 1, hospital: '', urgency: 'URGENT' };
+const initial = { title: '', description: '', category: 'BLOOD', location: '', latitude: '', longitude: '', goalAmount: '', patientName: '', bloodType: 'O+', unitsNeeded: 1, hospital: '', urgency: 'URGENT', verifierCode: '' };
 
 export function NewPostProvider({ children }) {
   const [open, setOpen] = useState(false);
@@ -91,6 +91,8 @@ function NewPostDialog({ close }) {
         </div> : <div className="space-y-4">
           <Field label={t('title')} required value={form.title} onChange={event => set('title', event.target.value)}/>
           <Field label={t('description')} as="textarea" rows={5} required value={form.description} onChange={event => set('description', event.target.value)}/>
+          <Field label={t('verifierCode')} required value={form.verifierCode} onChange={event => set('verifierCode', event.target.value.toUpperCase())}/>
+          <p className="text-sm text-slate-600">{t('verifierCodeHint')}</p>
           <Field label={t('evidence')} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={event => setFiles(Array.from(event.target.files || []))}/>
           <p className="text-xs text-slate-500">{t('helpText')}</p>
         </div>}

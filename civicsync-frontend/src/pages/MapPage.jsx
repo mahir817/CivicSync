@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Circle, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { campaignApi, civicReportApi, healthApi } from '../api/client';
 import { useLocale } from '../i18n';
@@ -23,6 +23,11 @@ function LocateControl({ trigger }) {
   return null;
 }
 
+function CoordinatePicker({ onPick }) {
+  useMapEvents({ click(event) { onPick({ latitude: event.latlng.lat, longitude: event.latlng.lng }); } });
+  return null;
+}
+
 export default function MapPage() {
   const { t } = useLocale();
   const [params] = useSearchParams();
@@ -31,6 +36,7 @@ export default function MapPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [coordinates, setCoordinates] = useState(null);
   const [query, setQuery] = useState('');
   const [locateTrigger, setLocateTrigger] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -76,6 +82,7 @@ export default function MapPage() {
         <MapContainer center={center} zoom={12} className="h-full w-full">
           <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
           <LocateControl trigger={locateTrigger}/>
+          <CoordinatePicker onPick={setCoordinates}/>
           {layers.civic && shownReports.filter(report => Number.isFinite(Number(report.latitude)) && Number.isFinite(Number(report.longitude))).map(report => {
             const stale = now - new Date(report.lastConfirmedAt || report.createdAt).getTime() > 12 * 60 * 60 * 1000;
             return <Marker key={'civic-' + report.id} position={[report.latitude,report.longitude]} icon={report.status === 'CONFIRMED' ? confirmedPin : civicPin} opacity={stale ? 0.45 : 1} eventHandlers={{ click: () => setSelected({ type: 'civic', data: report }) }}/>;
@@ -85,6 +92,7 @@ export default function MapPage() {
         </MapContainer>
       </div>
       <aside className="space-y-4">
+        <Card><h2 className="font-bold">{t('mapCoordinates')}</h2><p className="mt-2 text-sm text-slate-600">{t('clickMapCoordinates')}</p>{coordinates && <div className="mt-3 flex flex-wrap items-center gap-2"><code className="text-sm">{t('latitude')}: {coordinates.latitude.toFixed(6)}<br/>{t('longitude')}: {coordinates.longitude.toFixed(6)}</code><Button variant="secondary" onClick={() => navigator.clipboard.writeText(`${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`)}>{t('copyCoordinates')}</Button></div>}</Card>
         {selected ? <Card><button className="float-right text-slate-500" onClick={() => setSelected(null)} aria-label={t('cancel')}>×</button>
           {selected.type === 'campaign' ? <><p className="text-xs font-bold text-blue-700"><Category value={selected.data.category}/></p><h2 className="mt-2 text-xl font-bold">{selected.data.title}</h2><p className="mt-2 text-sm text-slate-600">{selected.data.location}</p><div className="mt-3"><Badge status={selected.data.status}/></div><Link className="mt-4 inline-block rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white" to={'/post/' + selected.data.id}>{t('viewDetails')}</Link></>
             : selected.type === 'civic' ? <><h2 className="text-lg font-bold">{selected.data.description}</h2>{selected.data.photoUrl && <img className="mt-3 max-h-48 w-full rounded-xl object-cover" src={selected.data.photoUrl} alt=""/>}<div className="mt-3"><Badge status={selected.data.status}/></div><p className="mt-2 text-sm">{selected.data.confirmationCount} {t('reportCount')}</p><div className="mt-4 flex gap-2"><Button onClick={() => confirm(selected.data.id)}>{t('confirm')}</Button><Link className="rounded-xl border border-slate-300 px-4 py-2 text-sm" to={'/civic-reports/' + selected.data.id}>{t('viewDetails')}</Link></div></>
