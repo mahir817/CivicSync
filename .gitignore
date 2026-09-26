@@ -1,7 +1,10 @@
 # Gradle
 .gradle/
+backend/.gradle/
+**/.gradle/
 build/
 **/build/
+**/bin/
 
 # IntelliJ
 .idea/
@@ -24,3 +27,14 @@ frontend/dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+run-backend.bat
+.worktrees/
+backend/private-documents/
+**/private-documents/
+**/uploads/
+selenium-tests/artifacts/
+**/__pycache__/
+.pytest_cache/
+selenium-tests/.venv/
+se-metadata.json

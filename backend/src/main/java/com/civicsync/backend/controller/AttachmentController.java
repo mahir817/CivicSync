@@ -2,6 +2,7 @@ package com.civicsync.backend.controller;
 
 import com.civicsync.backend.dto.AttachmentDtos.AttachmentResponse;
 import com.civicsync.backend.service.AttachmentService;
+import com.civicsync.backend.service.CampaignService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -14,14 +15,17 @@ import java.util.List;
 public class AttachmentController {
 
     private final AttachmentService attachmentService;
+    private final CampaignService campaignService;
 
-    public AttachmentController(AttachmentService attachmentService) {
+    public AttachmentController(AttachmentService attachmentService, CampaignService campaignService) {
         this.attachmentService = attachmentService;
+        this.campaignService = campaignService;
     }
 
     // Public - shown on the Campaign Detail page
     @GetMapping
-    public ResponseEntity<?> getAll(@PathVariable Long campaignId) {
+    public ResponseEntity<?> getAll(@PathVariable Long campaignId, Authentication auth) {
+        campaignService.getById(campaignId, auth == null ? null : auth.getName());
         return ResponseEntity.ok(attachmentService.getForCampaign(campaignId));
     }
 

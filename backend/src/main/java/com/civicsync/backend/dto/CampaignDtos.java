@@ -13,7 +13,15 @@ public class CampaignDtos {
             @NotBlank String description,
             @NotNull Campaign.Category category,
             String location,
-            Double goalAmount
+            Double latitude,
+            Double longitude,
+            Double goalAmount,
+            String patientName,
+            String bloodType,
+            Integer unitsNeeded,
+            String hospital,
+            Campaign.Urgency urgency,
+            @NotBlank String verifierCode
     ) {}
 
     public record CampaignResponse(
@@ -23,12 +31,27 @@ public class CampaignDtos {
             Campaign.Category category,
             Campaign.VerificationStatus status,
             String location,
+            Double latitude,
+            Double longitude,
             Double goalAmount,
             Double raisedAmount,
+            String patientName,
+            String bloodType,
+            Integer unitsNeeded,
+            String hospital,
+            Campaign.Urgency urgency,
+            String verificationNote,
+            Instant infoRequestedAt,
+            Long requesterId,
             String requesterName,
             String verifiedByName,
+            String requestedVerifierName,
             Instant createdAt,
-            Instant verifiedAt
+            Instant verifiedAt,
+            String outcomeSummary,
+            String outcomeProofUrl,
+            boolean outcomeApproved,
+            Instant completedAt
     ) {
         public static CampaignResponse from(Campaign c) {
             return new CampaignResponse(
@@ -38,13 +61,37 @@ public class CampaignDtos {
                     c.getCategory(),
                     c.getStatus(),
                     c.getLocation(),
+                    c.getLatitude(),
+                    c.getLongitude(),
                     c.getGoalAmount(),
                     c.getRaisedAmount(),
+                    c.getPatientName(),
+                    c.getBloodType(),
+                    c.getUnitsNeeded(),
+                    c.getHospital(),
+                    c.getUrgency(),
+                    c.getVerificationNote(),
+                    c.getInfoRequestedAt(),
+                    c.getRequester() != null ? c.getRequester().getId() : null,
                     c.getRequester() != null ? c.getRequester().getFullName() : null,
                     c.getVerifiedBy() != null ? c.getVerifiedBy().getFullName() : null,
+                    c.getRequestedVerifier() != null ? c.getRequestedVerifier().getFullName() : null,
                     c.getCreatedAt(),
-                    c.getVerifiedAt()
+                    c.getVerifiedAt(),
+                    c.isOutcomeApproved() ? c.getOutcomeSummary() : null,
+                    c.isOutcomeApproved() ? c.getOutcomeProofUrl() : null,
+                    c.isOutcomeApproved(),
+                    c.getCompletedAt()
             );
         }
     }
+
+    public record CampaignWithAttachmentsResponse(
+        CampaignResponse campaign,
+        java.util.List<com.civicsync.backend.dto.AttachmentDtos.AttachmentResponse> attachments
+    ) {}
+
+    public record OutcomeRequest(@NotBlank String summary, String proofUrl) {}
+    public enum ReviewAction { APPROVE, REJECT, REQUEST_INFO }
+    public record ReviewRequest(@NotNull ReviewAction action, String reason) {}
 }

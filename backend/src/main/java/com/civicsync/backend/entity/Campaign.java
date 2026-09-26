@@ -33,10 +33,22 @@ public class Campaign {
     private VerificationStatus status = VerificationStatus.PENDING;
 
     private String location;
+    private Double latitude;
+    private Double longitude;
 
     private Double goalAmount;
 
     private Double raisedAmount = 0.0;
+
+    private String patientName;
+    private String bloodType;
+    private Integer unitsNeeded;
+    private String hospital;
+    @Enumerated(EnumType.STRING)
+    private Urgency urgency;
+    @Column(length = 1000)
+    private String verificationNote;
+    private Instant infoRequestedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requester_id", nullable = false)
@@ -46,16 +58,28 @@ public class Campaign {
     @JoinColumn(name = "verified_by")
     private User verifiedBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "requested_verifier_id")
+    private User requestedVerifier;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     private Instant verifiedAt;
+
+    @Column(length = 2000)
+    private String outcomeSummary;
+    private String outcomeProofUrl;
+    private boolean outcomeApproved = false;
+    private Instant completedAt;
 
     public enum Category {
         BLOOD, PET_CARE, CHARITY, DISASTER_RELIEF
     }
 
     public enum VerificationStatus {
-        PENDING, VERIFIED, REJECTED, COMPLETED
+        PENDING, INFO_REQUESTED, VERIFIED, REJECTED, COMPLETED
     }
+
+    public enum Urgency { ROUTINE, SOON, URGENT, CRITICAL }
 }

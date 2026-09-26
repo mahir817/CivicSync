@@ -14,14 +14,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import com.civicsync.backend.repository.UserRepository;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    public JwtAuthFilter(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -41,7 +44,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String email = jwtUtil.extractEmail(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtUtil.isTokenValid(token, email)) {
-                    String role = jwtUtil.extractRole(token);
+                    var user = userRepository.findByEmail(email).orElse(null);
+                    if (user == null) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                    String role = user.getRole().name();
                     var authToken = new UsernamePasswordAuthenticationToken(
                             email, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

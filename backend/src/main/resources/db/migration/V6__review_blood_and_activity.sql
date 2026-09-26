@@ -1,0 +1,13 @@
+ALTER TABLE campaigns
+  MODIFY COLUMN status ENUM('PENDING','INFO_REQUESTED','VERIFIED','REJECTED','COMPLETED') NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN patient_name VARCHAR(255),
+  ADD COLUMN blood_type VARCHAR(8),
+  ADD COLUMN units_needed INT,
+  ADD COLUMN hospital VARCHAR(255),
+  ADD COLUMN urgency ENUM('ROUTINE','SOON','URGENT','CRITICAL'),
+  ADD COLUMN verification_note VARCHAR(1000),
+  ADD COLUMN info_requested_at DATETIME(6);
+
+ALTER TABLE notifications ADD COLUMN message VARCHAR(1000);
+ALTER TABLE civic_reports ADD COLUMN last_confirmed_at DATETIME(6);
+ALTER TABLE donations ADD COLUMN contact_phone VARCHAR(255);

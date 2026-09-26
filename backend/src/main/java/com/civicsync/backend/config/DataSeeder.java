@@ -4,27 +4,39 @@ import com.civicsync.backend.entity.Campaign;
 import com.civicsync.backend.entity.User;
 import com.civicsync.backend.repository.CampaignRepository;
 import com.civicsync.backend.repository.UserRepository;
+import com.civicsync.backend.entity.CivicReport;
+import com.civicsync.backend.repository.CivicReportRepository;
+import com.civicsync.backend.entity.SymptomReport;
+import com.civicsync.backend.repository.SymptomReportRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Component
+@Profile("dev")
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final CampaignRepository campaignRepository;
+    private final CivicReportRepository civicReportRepository;
+    private final SymptomReportRepository symptomReportRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(
             UserRepository userRepository,
             CampaignRepository campaignRepository,
+            CivicReportRepository civicReportRepository,
+            SymptomReportRepository symptomReportRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
         this.campaignRepository = campaignRepository;
+        this.civicReportRepository = civicReportRepository;
+        this.symptomReportRepository = symptomReportRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -48,12 +60,16 @@ public class DataSeeder implements CommandLineRunner {
                 "verifier@deltahospital.bd",
                 User.Role.VERIFIER
         );
+        deltaHospital.getVerifierCategories().add(Campaign.Category.BLOOD);
+        userRepository.save(deltaHospital);
 
         User pawsShelter = createUser(
                 "Paws & Whiskers Shelter (Verifier)",
                 "verifier@pawsshelter.bd",
                 User.Role.VERIFIER
         );
+        pawsShelter.getVerifierCategories().add(Campaign.Category.PET_CARE);
+        userRepository.save(pawsShelter);
 
         User admin = createUser(
                 "CivicSync Admin",
@@ -82,6 +98,12 @@ public class DataSeeder implements CommandLineRunner {
                 "tanvir@example.com",
                 User.Role.USER
         );
+
+        seedCivicReport(tanvir, 23.8069, 90.3687,
+                "Waterlogging at Mirpur 10 Circle. Vehicles are delayed; avoid the main road.",
+                CivicReport.Status.UNCONFIRMED, 0);
+        for (int i = 0; i < 5; i++) seedSymptom("mirpur 10", "Fever and body pain");
+        for (int i = 0; i < 3; i++) seedSymptom("dhanmondi", "Fever");
 
         User mim = createUser(
                 "Mim Akter",
@@ -140,8 +162,8 @@ public class DataSeeder implements CommandLineRunner {
                 Campaign.Category.CHARITY,
                 "Old Dhaka",
                 60000.0,
-                22000.0,
-                Campaign.VerificationStatus.VERIFIED,
+                60000.0,
+                Campaign.VerificationStatus.COMPLETED,
                 45
         );
 
@@ -217,6 +239,8 @@ public class DataSeeder implements CommandLineRunner {
         );
 
         user.setRole(role);
+        if (role == User.Role.VERIFIER) user.setVerifierCode(
+                java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
 
         return userRepository.save(user);
     }
@@ -243,18 +267,34 @@ public class DataSeeder implements CommandLineRunner {
         campaign.setDescription(description);
         campaign.setCategory(category);
         campaign.setLocation(location);
+        String normalized = location.toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains("dhanmondi")) { campaign.setLatitude(23.7461); campaign.setLongitude(90.3742); }
+        else if (normalized.contains("mirpur")) { campaign.setLatitude(23.8069); campaign.setLongitude(90.3687); }
+        else if (normalized.contains("uttara")) { campaign.setLatitude(23.8759); campaign.setLongitude(90.3795); }
+        else if (normalized.contains("gulshan")) { campaign.setLatitude(23.7925); campaign.setLongitude(90.4078); }
+        else if (normalized.contains("sylhet")) { campaign.setLatitude(24.8949); campaign.setLongitude(91.8687); }
+        else if (normalized.contains("old dhaka")) { campaign.setLatitude(23.7104); campaign.setLongitude(90.4074); }
+        campaign.setUrgency(category == Campaign.Category.BLOOD || category == Campaign.Category.DISASTER_RELIEF
+                ? Campaign.Urgency.CRITICAL : Campaign.Urgency.SOON);
+        if (category == Campaign.Category.BLOOD) {
+            campaign.setPatientName(title.startsWith("O+") ? "Amina Rahman" : "Sadia Islam");
+            campaign.setBloodType(title.startsWith("O+") ? "O+" : "A-");
+            campaign.setUnitsNeeded(2);
+            campaign.setHospital(title.contains("Delta") ? "Delta Hospital" : "Uttara Medical College Hospital");
+        }
 
         campaign.setGoalAmount(goal);
         campaign.setRaisedAmount(raised);
 
         campaign.setRequester(requester);
+        campaign.setRequestedVerifier(verifier);
         campaign.setStatus(status);
 
         campaign.setCreatedAt(
                 Instant.now().minus(daysAgo, ChronoUnit.DAYS)
         );
 
-        if (status == Campaign.VerificationStatus.VERIFIED
+        if ((status == Campaign.VerificationStatus.VERIFIED || status == Campaign.VerificationStatus.COMPLETED)
                 && verifier != null) {
 
             campaign.setVerifiedBy(verifier);
@@ -266,7 +306,30 @@ public class DataSeeder implements CommandLineRunner {
                     )
             );
         }
+        if (status == Campaign.VerificationStatus.COMPLETED) {
+            campaign.setOutcomeSummary("School supplies were delivered to 40 children in Old Dhaka.");
+            campaign.setOutcomeApproved(true);
+            campaign.setCompletedAt(Instant.now().minus(Math.max(daysAgo - 2, 0), ChronoUnit.DAYS));
+        }
 
         campaignRepository.save(campaign);
+    }
+
+    private void seedCivicReport(User reporter, Double lat, Double lng, String desc, CivicReport.Status status, int confirmations) {
+        CivicReport report = new CivicReport();
+        report.setReporter(reporter);
+        report.setLatitude(lat);
+        report.setLongitude(lng);
+        report.setDescription(desc);
+        report.setStatus(status);
+        report.setConfirmationCount(confirmations);
+        civicReportRepository.save(report);
+    }
+
+    private void seedSymptom(String area, String symptom) {
+        SymptomReport report = new SymptomReport();
+        report.setArea(area);
+        report.setSymptom(symptom);
+        symptomReportRepository.save(report);
     }
 }
