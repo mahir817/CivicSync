@@ -18,6 +18,7 @@ export const donationApi = {
   create: (campaignId, data) => api.post(`/campaigns/${campaignId}/donations`, data),
   getPendingReceipts: () => api.get('/donations/pending-receipts'),
   confirmReceipt: (campaignId, donationId) => api.put(`/campaigns/${campaignId}/donations/${donationId}/confirm`),
+  confirmBlood: (campaignId, donationId) => api.put(`/campaigns/${campaignId}/donations/${donationId}/confirm-blood`),
 };
 
 // Civic Report API
@@ -78,6 +79,8 @@ export const profileApi = {
   notifications: () => api.get('/me/notifications'),
   markRead: (id) => api.patch(`/me/notifications/${id}/read`),
 };
+
+export const bloodDonorApi = { find: (bloodGroup, area) => api.get('/blood-donors', { params: { bloodGroup, area } }) };
 
 export const adminApi = {
   dashboard: () => api.get('/admin/dashboard'),
