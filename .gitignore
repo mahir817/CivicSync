@@ -1,7 +1,10 @@
 # Gradle
 .gradle/
+backend/.gradle/
+**/.gradle/
 build/
 **/build/
+**/bin/
 
 # IntelliJ
 .idea/
