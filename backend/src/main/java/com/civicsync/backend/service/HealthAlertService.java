@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,7 +27,7 @@ public class HealthAlertService {
 
     public void submit(SubmitSymptomRequest req) {
         SymptomReport report = new SymptomReport();
-        report.setArea(req.area().trim());
+        report.setArea(req.area().trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT));
         report.setSymptom(req.symptom().trim());
         symptomReportRepository.save(report);
     }

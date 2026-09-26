@@ -23,6 +23,7 @@ public class AuthDtos {
             Long userId,
             String fullName,
             String email,
-            String role
+            String role,
+            String language
     ) {}
 }

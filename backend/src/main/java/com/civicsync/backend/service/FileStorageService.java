@@ -62,6 +62,9 @@ public class FileStorageService {
         if (dotIndex >= 0) {
             extension = originalName.substring(dotIndex);
         }
+        if (!extension.matches("\\.[A-Za-z0-9]{1,8}")) {
+            throw new IllegalArgumentException("Invalid file extension");
+        }
         String storedFileName = UUID.randomUUID() + extension;
 
         try {
@@ -77,6 +80,9 @@ public class FileStorageService {
     public Resource load(String storedFileName) {
         try {
             Path file = rootLocation.resolve(storedFileName).normalize();
+            if (!file.startsWith(rootLocation)) {
+                throw new IllegalArgumentException("Invalid file name");
+            }
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() && resource.isReadable()) {
                 return resource;

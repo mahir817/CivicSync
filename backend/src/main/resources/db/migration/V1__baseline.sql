@@ -1,0 +1,81 @@
+﻿CREATE TABLE IF NOT EXISTS users (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  full_name VARCHAR(255) NOT NULL,
+  role ENUM('USER','VERIFIER','ADMIN') NOT NULL DEFAULT 'USER',
+  created_at DATETIME(6) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS campaigns (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description VARCHAR(2000) NOT NULL,
+  category ENUM('BLOOD','PET_CARE','CHARITY','DISASTER_RELIEF') NOT NULL,
+  status ENUM('PENDING','VERIFIED','REJECTED','COMPLETED') NOT NULL DEFAULT 'PENDING',
+  location VARCHAR(255),
+  goal_amount DOUBLE,
+  raised_amount DOUBLE,
+  requester_id BIGINT NOT NULL,
+  verified_by BIGINT,
+  created_at DATETIME(6) NOT NULL,
+  verified_at DATETIME(6),
+  FOREIGN KEY (requester_id) REFERENCES users(id),
+  FOREIGN KEY (verified_by) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS donations (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  campaign_id BIGINT NOT NULL,
+  donor_id BIGINT NOT NULL,
+  type ENUM('MONETARY','PLEDGE') NOT NULL,
+  amount DOUBLE,
+  message VARCHAR(500),
+  created_at DATETIME(6) NOT NULL,
+  FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+  FOREIGN KEY (donor_id) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS civic_reports (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  reporter_id BIGINT NOT NULL,
+  latitude DOUBLE NOT NULL,
+  longitude DOUBLE NOT NULL,
+  description VARCHAR(1000) NOT NULL,
+  photo_url VARCHAR(255),
+  status ENUM('UNCONFIRMED','CONFIRMED','RESOLVED') NOT NULL DEFAULT 'UNCONFIRMED',
+  confirmation_count INT NOT NULL DEFAULT 0,
+  created_at DATETIME(6) NOT NULL,
+  FOREIGN KEY (reporter_id) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS symptom_reports (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  area VARCHAR(255) NOT NULL,
+  symptom VARCHAR(255) NOT NULL,
+  reported_at DATETIME(6) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS campaign_attachments (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  campaign_id BIGINT NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  stored_file_name VARCHAR(255) NOT NULL UNIQUE,
+  file_type VARCHAR(255) NOT NULL,
+  file_size_bytes BIGINT NOT NULL,
+  uploaded_at DATETIME(6) NOT NULL,
+  FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
+);
+CREATE TABLE IF NOT EXISTS comments (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  post_type ENUM('CAMPAIGN','CIVIC_REPORT') NOT NULL,
+  post_id BIGINT NOT NULL,
+  author_id BIGINT NOT NULL,
+  content VARCHAR(1000) NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  FOREIGN KEY (author_id) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS post_likes (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  post_type ENUM('CAMPAIGN','CIVIC_REPORT') NOT NULL,
+  post_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  UNIQUE KEY uq_post_like (post_type, post_id, user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);

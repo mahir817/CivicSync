@@ -1,16 +1,23 @@
-# React + Vite
+﻿# CivicSync frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React, Vite, Tailwind CSS, and Leaflet client for CivicSync.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From this directory:
 
-## React Compiler
+```bash
+npm install
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Open the local URL printed by Vite. The development server proxies `/api` to the Spring Boot server at `http://localhost:8081`. To use a different API origin, set `VITE_API_BASE_URL` to its full `/api` URL. The backend must be running for live lists, authentication, and forms.
 
-## Expanding the ESLint configuration
+## Checks
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run lint
+npm run build
+```
+
+The interface supports English and Bengali through the shared navbar. Account settings store the language, area, interests, and reminder preference. All campaign, map, report, alert, profile, review, inbox, and admin data comes from the backend.

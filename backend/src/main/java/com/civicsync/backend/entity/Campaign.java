@@ -33,6 +33,8 @@ public class Campaign {
     private VerificationStatus status = VerificationStatus.PENDING;
 
     private String location;
+    private Double latitude;
+    private Double longitude;
 
     private Double goalAmount;
 
@@ -50,6 +52,12 @@ public class Campaign {
     private Instant createdAt = Instant.now();
 
     private Instant verifiedAt;
+
+    @Column(length = 2000)
+    private String outcomeSummary;
+    private String outcomeProofUrl;
+    private boolean outcomeApproved = false;
+    private Instant completedAt;
 
     public enum Category {
         BLOOD, PET_CARE, CHARITY, DISASTER_RELIEF

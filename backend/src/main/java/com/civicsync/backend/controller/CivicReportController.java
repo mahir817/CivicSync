@@ -23,6 +23,11 @@ public class CivicReportController {
         return ResponseEntity.ok(civicReportService.getActive());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(civicReportService.getById(id));
+    }
+
     // Requires auth - any logged-in user can report
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateCivicReportRequest req, Authentication auth) {
@@ -35,9 +40,9 @@ public class CivicReportController {
 
     // Requires auth - "Confirm This" button
     @PostMapping("/{id}/confirm")
-    public ResponseEntity<?> confirm(@PathVariable Long id) {
+    public ResponseEntity<?> confirm(@PathVariable Long id, Authentication auth) {
         try {
-            return ResponseEntity.ok(civicReportService.confirm(id));
+            return ResponseEntity.ok(civicReportService.confirm(id, auth.getName()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new AuthController.ErrorResponse(e.getMessage()));
         }
@@ -45,9 +50,9 @@ public class CivicReportController {
 
     // Requires auth - marks a clogging report as cleared
     @PutMapping("/{id}/resolve")
-    public ResponseEntity<?> resolve(@PathVariable Long id) {
+    public ResponseEntity<?> resolve(@PathVariable Long id, Authentication auth) {
         try {
-            return ResponseEntity.ok(civicReportService.resolve(id));
+            return ResponseEntity.ok(civicReportService.resolve(id, auth.getName()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new AuthController.ErrorResponse(e.getMessage()));
         }

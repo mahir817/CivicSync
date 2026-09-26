@@ -23,6 +23,7 @@ public class CivicReportDtos {
             String photoUrl,
             CivicReport.Status status,
             Integer confirmationCount,
+            Long reporterId,
             String reporterName,
             Instant createdAt
     ) {
@@ -35,6 +36,7 @@ public class CivicReportDtos {
                     r.getPhotoUrl(),
                     r.getStatus(),
                     r.getConfirmationCount(),
+                    r.getReporter().getId(),
                     r.getReporter().getFullName(),
                     r.getCreatedAt()
             );

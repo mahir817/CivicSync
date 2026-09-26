@@ -21,6 +21,8 @@ public class DonationDtos {
             Double amount,
             String message,
             String donorName,
+            Donation.Status status,
+            Instant confirmedAt,
             Instant createdAt
     ) {
         public static DonationResponse from(Donation d) {
@@ -32,6 +34,8 @@ public class DonationDtos {
                     d.getAmount(),
                     d.getMessage(),
                     d.getDonor().getFullName(),
+                    d.getStatus() == null ? Donation.Status.CONFIRMED : d.getStatus(),
+                    d.getConfirmedAt(),
                     d.getCreatedAt()
             );
         }

@@ -10,11 +10,13 @@ import com.civicsync.backend.repository.CommentRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Component
+@Profile("dev")
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
@@ -40,14 +42,6 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) {
 
-        if (civicReportRepository.count() == 0 && userRepository.count() > 0) {
-            User reporter = userRepository.findByEmail("tanvir@example.com")
-                    .orElseGet(() -> userRepository.findAll().get(0));
-            seedCivicReport(reporter, 23.8069, 90.3687, "Severe Waterlogging at Mirpur 10 Circle: Knee-deep water on main road towards Kazipara. Vehicles stranded. Avoid Begum Rokeya Sarani.", CivicReport.Status.UNCONFIRMED, 18);
-            seedCivicReport(reporter, 23.7516, 90.3934, "Drainage Overflow at Karwan Bazar: Underpass drainage clogged after morning downpour. Stagnant water blocking lane entries.", CivicReport.Status.UNCONFIRMED, 6);
-            System.out.println("Seeded initial civic reports.");
-        }
-
         // Do not seed again if users already exist in MySQL
         if (userRepository.count() > 0) {
             System.out.println("CivicSync database already contains data. Skipping seed.");
@@ -65,12 +59,16 @@ public class DataSeeder implements CommandLineRunner {
                 "verifier@deltahospital.bd",
                 User.Role.VERIFIER
         );
+        deltaHospital.getVerifierCategories().add(Campaign.Category.BLOOD);
+        userRepository.save(deltaHospital);
 
         User pawsShelter = createUser(
                 "Paws & Whiskers Shelter (Verifier)",
                 "verifier@pawsshelter.bd",
                 User.Role.VERIFIER
         );
+        pawsShelter.getVerifierCategories().add(Campaign.Category.PET_CARE);
+        userRepository.save(pawsShelter);
 
         User admin = createUser(
                 "CivicSync Admin",
@@ -99,6 +97,10 @@ public class DataSeeder implements CommandLineRunner {
                 "tanvir@example.com",
                 User.Role.USER
         );
+
+        seedCivicReport(tanvir, 23.8069, 90.3687,
+                "Waterlogging at Mirpur 10 Circle. Vehicles are delayed; avoid the main road.",
+                CivicReport.Status.UNCONFIRMED, 0);
 
         User mim = createUser(
                 "Mim Akter",

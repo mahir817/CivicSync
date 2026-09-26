@@ -55,8 +55,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/symptom-reports").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/health-alerts").permitAll()
 
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/campaigns/mine").authenticated()
+
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/pending").hasAnyRole("VERIFIER", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/campaigns/outcomes/pending").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/verify").hasAnyRole("VERIFIER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/campaigns/*/outcome/approve").hasAnyRole("VERIFIER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/campaigns/**").permitAll()
 
                 .anyRequest().authenticated()
@@ -69,7 +74,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*"));
+        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

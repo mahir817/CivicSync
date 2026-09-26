@@ -36,10 +36,23 @@ public class Donation {
     @Column(length = 500)
     private String message;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status = Status.PENDING_RECEIPT;
+
+    private Instant confirmedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User confirmedBy;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     public enum Type {
         MONETARY, PLEDGE
+    }
+
+    public enum Status {
+        PENDING_RECEIPT, CONFIRMED, PLEDGED
     }
 }

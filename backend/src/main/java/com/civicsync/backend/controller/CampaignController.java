@@ -37,8 +37,13 @@ public CampaignController(CampaignService campaignService, AttachmentService att
 
     // Verifier/Admin only - powers the Verifier Dashboard queue
     @GetMapping("/pending")
-    public ResponseEntity<?> getPending() {
-        return ResponseEntity.ok(campaignService.getPending());
+    public ResponseEntity<?> getPending(Authentication auth) {
+        return ResponseEntity.ok(campaignService.getPending(auth.getName()));
+    }
+
+    @GetMapping("/outcomes/pending")
+    public ResponseEntity<?> getPendingOutcomes(Authentication auth) {
+        return ResponseEntity.ok(campaignService.getPendingOutcomes(auth.getName()));
     }
 
     // Requires auth - powers "My Posts" on the Profile page
@@ -49,12 +54,23 @@ public CampaignController(CampaignService campaignService, AttachmentService att
 
     // Public - powers the Campaign Detail page (Trust Trail)
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Long id) {
+    public ResponseEntity<?> getById(@PathVariable Long id, Authentication auth) {
         try {
-            return ResponseEntity.ok(campaignService.getById(id));
+            return ResponseEntity.ok(campaignService.getById(id, auth == null ? null : auth.getName()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(404).body(new AuthController.ErrorResponse(e.getMessage()));
         }
+    }
+
+    @PostMapping("/{id}/outcome")
+    public ResponseEntity<?> submitOutcome(@PathVariable Long id,
+            @Valid @RequestBody CampaignDtos.OutcomeRequest req, Authentication auth) {
+        return ResponseEntity.ok(campaignService.submitOutcome(id, req, auth.getName()));
+    }
+
+    @PutMapping("/{id}/outcome/approve")
+    public ResponseEntity<?> approveOutcome(@PathVariable Long id, Authentication auth) {
+        return ResponseEntity.ok(campaignService.approveOutcome(id, auth.getName()));
     }
 
 

@@ -31,6 +31,5 @@ html,
 body,
 #root {
   height: 100%;
-  background: linear-gradient(135deg, #fdf2f8 0%, #ffffff 100%); /* Pinkish-white gradient */
   color: #1e293b; /* Dark text for contrast */
 }

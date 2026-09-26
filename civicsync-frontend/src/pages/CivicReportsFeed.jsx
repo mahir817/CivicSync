@@ -1,81 +1,30 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { civicReportApi } from "../api/client";
-
-const STATUS_LABELS = {
-  UNCONFIRMED: { label: "Unconfirmed", color: "#F59E0B", bg: "#FFFBEB" },
-  CONFIRMED: { label: "Confirmed", color: "#E11D48", bg: "#FEF2F2" },
-};
+﻿import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { civicReportApi } from '../api/client';
+import { useLocale } from '../i18n';
+import { Page, Card, Button, Notice, Spinner, Empty, authUser, fmtDate } from '../components/UI';
 
 export default function CivicReportsFeed() {
-  const navigate = useNavigate();
+  const { t } = useLocale();
+  const user = authUser();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const userStr = localStorage.getItem('user');
-  const isAuthenticated = !!userStr;
-
-  const fetchReports = () => {
-    setLoading(true);
-    civicReportApi.getActive().then((res) => setReports(res.data)).finally(() => setLoading(false));
-  };
-
-  useEffect(fetchReports, []);
-
-  const handleConfirm = async (id) => {
-    await civicReportApi.confirm(id);
-    fetchReports();
-  };
-
-  return (
-    <div className="home-page">
-      <div className="feed-header">
-        <h1>Water-Clogging Reports</h1>
-        {isAuthenticated && (
-          <Link to="/report-clogging" className="btn-primary-sm" style={{ marginBottom: 16, display: "inline-block" }}>
-            + Report an area
-          </Link>
-        )}
-      </div>
-
-      {loading && <p className="feed-status">Loading reports...</p>}
-      {!loading && reports.length === 0 && <p className="feed-status">No active reports right now.</p>}
-
-      <div className="feed-list">
-        {reports.map((r) => {
-          const status = STATUS_LABELS[r.status] || STATUS_LABELS.UNCONFIRMED;
-          return (
-            <div 
-              className="campaign-card" 
-              key={r.id}
-              onClick={() => navigate(`/post/${r.id}`, { state: { post: { ...r, isCivic: true } } })}
-              style={{ cursor: "pointer" }}
-            >
-              <div className="campaign-card-header">
-                <span className="campaign-category">📍 {r.latitude.toFixed(4)}, {r.longitude.toFixed(4)}</span>
-                <span className="trust-badge" style={{ color: status.color, backgroundColor: status.bg }}>
-                  {status.label}
-                </span>
-              </div>
-              <p className="campaign-description">{r.description}</p>
-              <p className="campaign-requester">Reported by {r.reporterName} · {r.confirmationCount} confirmation{r.confirmationCount !== 1 ? "s" : ""}</p>
-
-              {isAuthenticated && (
-                <button 
-                  className="btn-primary-sm" 
-                  style={{ marginTop: 10 }} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleConfirm(r.id);
-                  }}
-                >
-                  Confirm This
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const [error, setError] = useState('');
+  const refresh = () => civicReportApi.getActive().then(r => { setReports(r.data); setError(''); }).catch(() => setError(t('error'))).finally(() => setLoading(false));
+  useEffect(() => {
+    let active = true;
+    const load = () => civicReportApi.getActive().then(r => { if (active) { setReports(r.data); setError(''); } }).catch(() => { if (active) setError(t('error')); }).finally(() => { if (active) setLoading(false); });
+    load(); const timer = setInterval(load, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, [t]);
+  const confirm = async (id) => { try { await civicReportApi.confirm(id); refresh(); } catch (err) { setError(err.response?.data?.message || t('error')); } };
+  return <Page title={t('reports')} subtitle={t('reportsText')} actions={<Link to={user ? '/report-clogging' : '/login'}><Button>{t('reportWater')}</Button></Link>}>
+    {error && <div className="mb-4"><Notice>{error}</Notice></div>}
+    {loading ? <Spinner /> : reports.length === 0 ? <Empty /> : <div className="space-y-4">{reports.map(r => <Card key={r.id}>
+      <div className="flex flex-wrap items-start justify-between gap-2"><p className="text-xs font-semibold text-slate-500">{Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)} · {fmtDate(r.createdAt)}</p><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{t(r.status === 'CONFIRMED' ? 'confirmed' : 'unconfirmed')}</span></div>
+      <Link to={'/civic-reports/' + r.id} className="mt-3 block text-lg font-bold hover:text-blue-600">{r.description}</Link>
+      <p className="mt-2 text-sm text-slate-500">{r.reporterName} · {r.confirmationCount} {t('reportCount')}</p>
+      {user && <Button variant="secondary" className="mt-4" onClick={() => confirm(r.id)}>{t('confirm')}</Button>}
+    </Card>)}</div>}
+  </Page>;
 }
